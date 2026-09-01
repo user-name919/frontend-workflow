@@ -1,0 +1,16 @@
+{
+  "templateVersion": "0.1.0",
+  "projectType": "vue3-typescript",
+  "frameworkGuide": ".ai-dev/frameworks/vue3-typescript.md",
+  "sourceRoots": ["src"],
+  "ignoredPaths": ["node_modules", "dist", "coverage"],
+  "verificationCommands": {
+    "lint": "",
+    "typecheck": "",
+    "test": "",
+    "build": ""
+  },
+  "allowAutomaticCommit": false,
+  "allowAutomaticPush": false,
+  "allowAutomaticDeploy": false
+}

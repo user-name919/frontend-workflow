@@ -1,0 +1,18 @@
+---
+description: Review-gated PRD-to-code workflow for frontend repositories
+alwaysApply: true
+---
+
+When working from product requirements, read `.ai-dev/constitution.md` and `.ai-dev/workflow.md` first.
+
+Use `.ai-dev/changes/<change>/status.json` as the state machine. Perform only the current phase and stop at human review gates. Never self-approve a gate.
+
+Require source or repository evidence for material claims. Apply the workflow evidence labels and do not implement unresolved inferences, conflicts, contract gaps, unlocated requirements, backend-owned behavior, or work belonging to another repository.
+
+Preserve existing changes. Implement one approved task at a time. Do not automatically commit, merge, push, or deploy. Run the repository verification commands and update `traceability.md` and `verification.md`.
+
+Before presenting a gate, run:
+
+```bash
+node .ai-dev/scripts/validate-change.mjs <change-dir>
+```

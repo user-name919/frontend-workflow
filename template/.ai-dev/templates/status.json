@@ -1,0 +1,13 @@
+{
+  "id": "{{CHANGE_ID}}",
+  "title": "{{TITLE}}",
+  "state": "INGEST",
+  "createdAt": "{{CREATED_AT}}",
+  "updatedAt": "{{CREATED_AT}}",
+  "approvals": {
+    "scope": null,
+    "spec": null,
+    "plan": null,
+    "final": null
+  }
+}

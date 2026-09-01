@@ -1,0 +1,4 @@
+interface:
+  display_name: "PRD to Code"
+  short_description: "Turn reviewed frontend PRDs into verified implementation tasks"
+  default_prompt: "Use $prd-to-code to analyze this PRD against the current frontend repository and stop at the next review gate."
