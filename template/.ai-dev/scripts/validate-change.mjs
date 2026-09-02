@@ -13,6 +13,8 @@ if (!rawChangeDir) {
 const changeDir = path.resolve(rawChangeDir)
 const requiredFiles = [
   'status.json',
+  'worktree.json',
+  'code-change.md',
   'source-index.md',
   'scope.md',
   'evidence.md',
@@ -51,6 +53,14 @@ try {
   status = JSON.parse(await readFile(path.join(changeDir, 'status.json'), 'utf8'))
   if (!states.has(status.state)) errors.push(`status.json: invalid state ${status.state}`)
   if (!status.id || !status.title) errors.push('status.json: id and title are required')
+  if (!Number.isInteger(status.consistency?.revision) || status.consistency.revision < 0) {
+    errors.push('status.json: consistency.revision must be a non-negative integer')
+  }
+  if (!Array.isArray(status.consistency?.staleArtifacts)) {
+    errors.push('status.json: consistency.staleArtifacts must be an array')
+  } else if (status.consistency.staleArtifacts.length) {
+    errors.push(`status.json: stale artifacts: ${status.consistency.staleArtifacts.join(', ')}`)
+  }
 } catch (error) {
   errors.push(`status.json: invalid JSON (${error.message})`)
 }

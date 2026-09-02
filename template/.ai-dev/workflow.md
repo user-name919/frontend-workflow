@@ -15,6 +15,24 @@ INGEST
 
 任何状态都可以转为 `BLOCKED`。只有在 `status.json` 中记录了人工批准后，才允许通过审核点。
 
+`state` 只表示当前执行阶段，不承担产物版本管理。`status.json.consistency` 单独记录产物修订号、过期产物和最近一次变更。因此，修改上游产物时保持当前 `state`，在当前阶段同步刷新下游产物并重新完成受影响的人工审核，不通过回退状态重跑整个流程。
+
+## 产物一致性
+
+修改已经生成的产物前执行：
+
+```bash
+node .ai-dev/scripts/update-consistency.mjs <change-dir> mark <artifact>
+```
+
+脚本根据 `.ai-dev/artifact-graph.json` 标记传递下游产物，并清除受影响的历史批准。Agent 必须读取 `status.json.consistency.staleArtifacts`，在当前状态内更新相关产物。只对确实已经刷新的文件执行：
+
+```bash
+node .ai-dev/scripts/update-consistency.mjs <change-dir> resolve <artifact...>
+```
+
+存在过期产物时不得通过任何审核点。重新审核只恢复受影响的批准，不改变当前执行阶段。
+
 ## 证据标签
 
 | 标签 | 含义 | 能否转为任务？ |
@@ -44,8 +62,8 @@ INGEST
 
 1. 在 `source-index.md` 中登记每个来源的标题、类型、路径、版本和敏感级别。
 2. 从复制的摘录中移除凭据、访问令牌、Cookie 和个人数据。
-3. 检查仓库规则、技术栈、Git 状态、相关命令和源码目录结构。
-4. 如果 `.ai-dev/config.json` 中配置的 `frameworkGuide` 存在，则读取该文件。
+3. 检查目标仓库自己的说明文件、依赖清单、锁文件、脚本、构建配置、源码结构和 Git 状态。
+4. 根据仓库证据判断框架、版本、包管理器、代码规范和可用命令；不得依赖工作流预设的项目类型或版本矩阵。
 5. 不得修改业务代码。
 6. 生成 `scope.md`、`evidence.md` 和 `open-questions.md`。
 7. 将状态转为 `SCOPE_REVIEW`，然后停止。
@@ -87,21 +105,24 @@ INGEST
 
 ## 阶段 4：IMPLEMENTING
 
-1. 再次检查 Git 状态，并保留已有修改。
-2. 每次只执行一个已批准的任务。
-3. 除非新的发现已经过审核，否则每次差异都必须限制在任务声明的文件范围内。
-4. 执行该任务对应的验证。
-5. 更新任务状态和追踪关系。
-6. 当范围发生变化、出现契约缺口，或无法确保验证结果可信时，停止实施并返回审核阶段。
+1. 确认 `approvals.plan` 已由人工填写，然后执行 `node .ai-dev/scripts/init-worktree.mjs <change-dir>`。
+2. 仅通过 `<change-dir>/project` 软链检查、修改和验证业务代码；该软链指向隔离 Git Worktree。
+3. 检查 Worktree 的 Git 状态并保留已有修改。Agent 根据仓库自身证据选择依赖安装、测试和构建命令。
+4. 每次只执行一个已批准的任务。
+5. 除非新的发现已经过审核，否则每次差异都必须限制在任务声明的文件范围内。
+6. 执行该任务对应的验证，更新任务状态和追踪关系。
+7. 在 `code-change.md` 中记录分支、基线提交、当前提交、修改文件和 Diff 摘要。
+8. 当范围发生变化、出现契约缺口，或无法确保验证可信时，停止实施；标记并刷新受影响产物，在当前状态请求重新审核。
 
 ## 阶段 5：VERIFYING
 
-1. 执行已经配置且实际存在的 lint、类型检查、测试和构建命令。
+1. 从 Worktree 的仓库脚本和配置中确认实际存在的 lint、类型检查、测试和构建命令后再执行。
 2. 执行能够自动化的验收检查。
 3. 在 `verification.md` 中记录准确的命令和执行结果。
-4. 列出需要人工执行的检查和剩余风险。
-5. 将状态转为 `FINAL_REVIEW`，然后停止。
+4. 更新 `code-change.md` 的最终修改文件和 Diff 摘要。
+5. 列出需要人工执行的检查和剩余风险。
+6. 确认 `staleArtifacts` 为空，将状态转为 `FINAL_REVIEW`，然后停止。
 
 ## 审核点 3：FINAL_REVIEW
 
-展示代码差异、追踪关系、验证结果、未验证事项和回滚说明。在进入 `COMPLETE` 之前，由人工记录 `approvals.final`。
+展示代码差异、追踪关系、验证结果、未验证事项和回滚说明。在进入 `COMPLETE` 之前，由人工记录 `approvals.final`。工作流不会自动 commit、push、创建 PR、merge、deploy 或删除 Worktree；开发人员在真实项目中审核效果后自行决定集成和清理方式。

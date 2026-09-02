@@ -11,6 +11,10 @@ Require source or repository evidence for material claims. Apply the workflow ev
 
 Preserve existing changes. Implement one approved task at a time. Do not automatically commit, merge, push, or deploy. Run the repository verification commands and update `traceability.md` and `verification.md`.
 
+After implementation-plan approval, create or reuse the isolated Worktree with `node .ai-dev/scripts/init-worktree.mjs <change-dir>`. Inspect, modify, and verify business code only through `<change-dir>/project`. Determine framework, versions, package manager, and commands from the linked repository itself; do not assume a predefined project profile.
+
+Before editing an existing workflow artifact, run `node .ai-dev/scripts/update-consistency.mjs <change-dir> mark <artifact>`. Refresh the downstream files listed in `status.json.consistency.staleArtifacts`, then resolve only the files actually updated. Artifact synchronization must not move `status.json.state` backward. Never pass a gate while stale artifacts remain.
+
 Before presenting a gate, run:
 
 ```bash

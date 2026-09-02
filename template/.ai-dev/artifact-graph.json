@@ -1,0 +1,47 @@
+{
+  "source-index.md": {
+    "downstream": ["scope.md", "evidence.md", "open-questions.md"],
+    "invalidatesApprovals": ["scope", "spec", "plan", "final"]
+  },
+  "scope.md": {
+    "downstream": ["frontend-spec.md"],
+    "invalidatesApprovals": ["scope", "spec", "plan", "final"]
+  },
+  "evidence.md": {
+    "downstream": ["open-questions.md", "frontend-spec.md"],
+    "invalidatesApprovals": ["scope", "spec", "plan", "final"]
+  },
+  "open-questions.md": {
+    "downstream": ["scope.md", "frontend-spec.md"],
+    "invalidatesApprovals": ["scope", "spec", "plan", "final"]
+  },
+  "frontend-spec.md": {
+    "downstream": ["acceptance.md", "implementation-plan.md"],
+    "invalidatesApprovals": ["spec", "plan", "final"]
+  },
+  "acceptance.md": {
+    "downstream": ["traceability.md", "verification.md"],
+    "invalidatesApprovals": ["spec", "plan", "final"]
+  },
+  "implementation-plan.md": {
+    "downstream": ["tasks.md"],
+    "invalidatesApprovals": ["plan", "final"]
+  },
+  "tasks.md": {
+    "downstream": ["traceability.md", "code-change.md"],
+    "invalidatesApprovals": ["plan", "final"]
+  },
+  "traceability.md": {
+    "downstream": ["verification.md"],
+    "invalidatesApprovals": ["final"]
+  },
+  "code-change.md": {
+    "downstream": ["verification.md"],
+    "invalidatesApprovals": ["final"]
+  },
+  "verification.md": {
+    "downstream": [],
+    "invalidatesApprovals": ["final"]
+  }
+}
+

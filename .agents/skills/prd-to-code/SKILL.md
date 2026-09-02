@@ -14,9 +14,20 @@ Find the repository root, then read `.ai-dev/workflow.md` and `.ai-dev/constitut
 3. Build every claim from source documents or repository evidence. Use the evidence labels defined by the workflow.
 4. Separate frontend behavior, backend ownership, interface contracts, cross-repository work, and verification requirements.
 5. Stop at each review gate. Never approve a gate on behalf of a human.
-6. Implement only approved tasks. Keep changes surgical and preserve existing worktree changes.
-7. Run repository-provided verification commands and record results in `verification.md`.
-8. Never commit, merge, push, deploy, or modify external systems unless the user explicitly requests that separate action.
+6. After plan approval, create or reuse the isolated Worktree with `node .ai-dev/scripts/init-worktree.mjs <change-dir>`.
+7. Inspect and modify business code only through `<change-dir>/project`. Infer framework, versions, package manager, commands, and conventions from that repository's own evidence.
+8. Implement only approved tasks. Keep changes surgical and preserve existing Worktree changes.
+9. Run repository-provided verification commands and record exact commands and results in `verification.md`.
+10. Record the branch, base commit, changed files, Diff summary, and review notes in `code-change.md`.
+11. Never commit, merge, push, open a PR, deploy, or modify external systems unless the user explicitly requests that separate action.
+
+## Keep artifacts consistent
+
+- Before editing an existing workflow artifact, run `node .ai-dev/scripts/update-consistency.mjs <change-dir> mark <artifact>`.
+- Read `status.json.consistency.staleArtifacts`, update every affected downstream artifact that is relevant to the current work, then run `node .ai-dev/scripts/update-consistency.mjs <change-dir> resolve <artifact...>` for the artifacts actually refreshed.
+- Keep `status.json.state` at the current execution phase while refreshing artifacts. Do not move the state backward merely to synchronize context.
+- A changed approved artifact invalidates its affected approval. Ask for a new human review at the current state after the stale artifacts are refreshed.
+- Do not pass a review gate while `staleArtifacts` is non-empty.
 
 ## Input handling
 

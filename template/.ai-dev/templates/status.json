@@ -4,6 +4,11 @@
   "state": "INGEST",
   "createdAt": "{{CREATED_AT}}",
   "updatedAt": "{{CREATED_AT}}",
+  "consistency": {
+    "revision": 0,
+    "staleArtifacts": [],
+    "lastChange": null
+  },
   "approvals": {
     "scope": null,
     "spec": null,

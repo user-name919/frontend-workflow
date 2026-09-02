@@ -39,17 +39,42 @@ async function listFiles(root, current = root) {
   return files
 }
 
+async function inspectSkills(skillsRoot) {
+  if (!await exists(skillsRoot)) {
+    return { count: 0, issues: ['skill root: MISSING'] }
+  }
+
+  const entries = await readdir(skillsRoot, { withFileTypes: true })
+  const directories = entries
+    .filter(entry => entry.isDirectory())
+    .sort((left, right) => left.name.localeCompare(right.name))
+  const issues = entries
+    .filter(entry => !entry.isDirectory())
+    .map(entry => `${entry.name}: expected a skill directory`)
+
+  for (const entry of directories) {
+    const skillFile = path.join(skillsRoot, entry.name, 'SKILL.md')
+    if (!await exists(skillFile)) issues.push(`${entry.name}: MISSING SKILL.md`)
+  }
+
+  if (!directories.length) issues.push('skill root: no skills found')
+  return { count: directories.length, issues }
+}
+
 function timestamp(date) {
   return date.toISOString().replaceAll('-', '').replaceAll(':', '').replace('.000', '')
 }
 
-async function buildPlan(sourceRoot, destinationRoot, reportRoot) {
+async function buildPlan(sourceRoot, destinationRoot, reportRoot, mapRelative = relative => relative) {
   const files = await listFiles(sourceRoot)
-  return files.map(relative => ({
-    source: path.join(sourceRoot, relative),
-    destination: path.join(destinationRoot, relative),
-    reportPath: path.relative(reportRoot, path.join(destinationRoot, relative))
-  }))
+  return files.map(relative => {
+    const destinationRelative = mapRelative(relative)
+    return {
+      source: path.join(sourceRoot, relative),
+      destination: path.join(destinationRoot, destinationRelative),
+      reportPath: path.relative(reportRoot, path.join(destinationRoot, destinationRelative))
+    }
+  })
 }
 
 async function classifyPlan(plan) {
@@ -122,7 +147,7 @@ function helpText() {
 Requires Node.js 18 or later.
 
 Commands:
-  frontend-work-flow install            Install the shared Codex/Cursor skill
+  frontend-work-flow install            Install all shared Codex/Cursor skills
   frontend-work-flow setup [project]    Add workflow assets to a frontend project
   frontend-work-flow doctor             Check runtime and packaged assets
   frontend-work-flow help               Show this help
@@ -149,36 +174,42 @@ export async function runCli(argv, options = {}) {
   }
 
   if (command === 'doctor') {
-    const globalAssets = path.join(packageRoot, '.agents/skills/prd-to-code')
+    const skillsRoot = path.join(packageRoot, '.agents/skills')
     const projectAssets = path.join(packageRoot, 'template')
-    const globalOk = await exists(globalAssets)
+    const skills = await inspectSkills(skillsRoot)
     const projectOk = await exists(projectAssets)
     stdout(`Node.js ${process.versions.node}: OK`)
-    stdout(`global skill assets: ${globalOk ? 'OK' : 'MISSING'}`)
+    stdout(`packaged skills: ${skills.count} ${skills.issues.length ? 'INVALID' : 'OK'}`)
+    for (const issue of skills.issues) stdout(`- ${issue}`)
     stdout(`project template assets: ${projectOk ? 'OK' : 'MISSING'}`)
-    return { ok: globalOk && projectOk, copied: [], skipped: [], backups: [] }
+    return { ok: !skills.issues.length && projectOk, copied: [], skipped: [], backups: [] }
   }
 
   let plan
   let reportRoot
 
   if (command === 'install') {
-    const sourceRoot = path.join(packageRoot, '.agents/skills/prd-to-code')
-    const destinationRoot = path.join(homeDir, '.agents/skills/prd-to-code')
+    const sourceRoot = path.join(packageRoot, '.agents/skills')
+    const destinationRoot = path.join(homeDir, '.agents/skills')
     reportRoot = homeDir
     if (!await exists(sourceRoot)) throw new Error(`Packaged assets not found: ${sourceRoot}`)
     plan = await buildPlan(sourceRoot, destinationRoot, reportRoot)
   } else if (command === 'setup') {
     const templateRoot = path.join(packageRoot, 'template')
-    const skillRoot = path.join(packageRoot, '.agents/skills/prd-to-code')
+    const skillRoot = path.join(packageRoot, '.agents/skills')
     reportRoot = path.resolve(target || process.cwd())
     if (!await exists(templateRoot)) throw new Error(`Packaged assets not found: ${templateRoot}`)
     if (!await exists(skillRoot)) throw new Error(`Packaged assets not found: ${skillRoot}`)
     plan = [
-      ...await buildPlan(templateRoot, reportRoot, reportRoot),
+      ...await buildPlan(
+        templateRoot,
+        reportRoot,
+        reportRoot,
+        relative => relative === '.ai-dev/gitignore.template' ? '.ai-dev/.gitignore' : relative
+      ),
       ...await buildPlan(
         skillRoot,
-        path.join(reportRoot, '.agents/skills/prd-to-code'),
+        path.join(reportRoot, '.agents/skills'),
         reportRoot
       )
     ]

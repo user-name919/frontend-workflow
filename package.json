@@ -1,6 +1,6 @@
 {
   "name": "frontend-work-flow",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Review-gated frontend PRD-to-code workflow for Codex and Cursor",
   "repository": "github:bi554lecex/frontend-work-flow",
   "homepage": "https://github.com/bi554lecex/frontend-work-flow#readme",
@@ -16,7 +16,7 @@
     "frontend-work-flow": "bin/frontend-work-flow.mjs"
   },
   "files": [
-    ".agents/skills/prd-to-code",
+    ".agents/skills",
     "bin",
     "src",
     "template",

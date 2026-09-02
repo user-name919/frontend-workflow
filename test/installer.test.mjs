@@ -13,19 +13,22 @@ async function makeFixture() {
   const projectDir = path.join(root, 'project')
 
   await mkdir(path.join(packageRoot, '.agents/skills/prd-to-code'), { recursive: true })
+  await mkdir(path.join(packageRoot, '.agents/skills/frontend-review'), { recursive: true })
   await mkdir(path.join(packageRoot, 'template/.ai-dev'), { recursive: true })
   await mkdir(path.join(packageRoot, 'template/.cursor/rules'), { recursive: true })
   await mkdir(homeDir, { recursive: true })
   await mkdir(projectDir, { recursive: true })
 
   await writeFile(path.join(packageRoot, '.agents/skills/prd-to-code/SKILL.md'), 'global skill\n')
+  await writeFile(path.join(packageRoot, '.agents/skills/frontend-review/SKILL.md'), 'review skill\n')
   await writeFile(path.join(packageRoot, 'template/.ai-dev/workflow.md'), 'workflow\n')
+  await writeFile(path.join(packageRoot, 'template/.ai-dev/gitignore.template'), 'worktrees/\nchanges/*/project\n')
   await writeFile(path.join(packageRoot, 'template/.cursor/rules/prd-to-code.mdc'), 'rule\n')
 
   return { packageRoot, homeDir, projectDir }
 }
 
-test('install copies the shared skill into the cross-agent user directory', async () => {
+test('install copies every packaged skill into the cross-agent user directory', async () => {
   const fixture = await makeFixture()
 
   const result = await runCli(['install'], fixture)
@@ -34,19 +37,34 @@ test('install copies the shared skill into the cross-agent user directory', asyn
     await readFile(path.join(fixture.homeDir, '.agents/skills/prd-to-code/SKILL.md'), 'utf8'),
     'global skill\n'
   )
-  assert.deepEqual(result.copied, ['.agents/skills/prd-to-code/SKILL.md'])
+  assert.equal(
+    await readFile(path.join(fixture.homeDir, '.agents/skills/frontend-review/SKILL.md'), 'utf8'),
+    'review skill\n'
+  )
+  assert.deepEqual(result.copied, [
+    '.agents/skills/frontend-review/SKILL.md',
+    '.agents/skills/prd-to-code/SKILL.md'
+  ])
 })
 
-test('setup copies workflow, Cursor rule, and project skill', async () => {
+test('setup copies workflow, Cursor rule, and every project skill', async () => {
   const fixture = await makeFixture()
 
   await runCli(['setup', fixture.projectDir], fixture)
 
   assert.equal(await readFile(path.join(fixture.projectDir, '.ai-dev/workflow.md'), 'utf8'), 'workflow\n')
+  assert.equal(
+    await readFile(path.join(fixture.projectDir, '.ai-dev/.gitignore'), 'utf8'),
+    'worktrees/\nchanges/*/project\n'
+  )
   assert.equal(await readFile(path.join(fixture.projectDir, '.cursor/rules/prd-to-code.mdc'), 'utf8'), 'rule\n')
   assert.equal(
     await readFile(path.join(fixture.projectDir, '.agents/skills/prd-to-code/SKILL.md'), 'utf8'),
     'global skill\n'
+  )
+  assert.equal(
+    await readFile(path.join(fixture.projectDir, '.agents/skills/frontend-review/SKILL.md'), 'utf8'),
+    'review skill\n'
   )
 })
 
@@ -106,6 +124,20 @@ test('doctor reports the runtime and both required asset roots', async () => {
 
   assert.equal(result.ok, true)
   assert.match(lines.join('\n'), /Node\.js/)
-  assert.match(lines.join('\n'), /global skill assets: OK/)
+  assert.match(lines.join('\n'), /packaged skills: 2 OK/)
   assert.match(lines.join('\n'), /project template assets: OK/)
+})
+
+test('doctor fails when a packaged skill has no SKILL.md', async () => {
+  const fixture = await makeFixture()
+  await mkdir(path.join(fixture.packageRoot, '.agents/skills/incomplete'), { recursive: true })
+  const lines = []
+
+  const result = await runCli(['doctor'], {
+    ...fixture,
+    stdout: line => lines.push(line)
+  })
+
+  assert.equal(result.ok, false)
+  assert.match(lines.join('\n'), /incomplete: MISSING SKILL\.md/)
 })
