@@ -22,7 +22,6 @@ async function makeFixture() {
   await writeFile(path.join(packageRoot, '.agents/skills/prd-to-code/SKILL.md'), 'global skill\n')
   await writeFile(path.join(packageRoot, '.agents/skills/frontend-review/SKILL.md'), 'review skill\n')
   await writeFile(path.join(packageRoot, 'template/.ai-dev/workflow.md'), 'workflow\n')
-  await writeFile(path.join(packageRoot, 'template/.ai-dev/gitignore.template'), 'worktrees/\nchanges/*/project\n')
   await writeFile(path.join(packageRoot, 'template/.cursor/rules/prd-to-code.mdc'), 'rule\n')
 
   return { packageRoot, homeDir, projectDir }
@@ -53,10 +52,6 @@ test('setup copies workflow, Cursor rule, and every project skill', async () => 
   await runCli(['setup', fixture.projectDir], fixture)
 
   assert.equal(await readFile(path.join(fixture.projectDir, '.ai-dev/workflow.md'), 'utf8'), 'workflow\n')
-  assert.equal(
-    await readFile(path.join(fixture.projectDir, '.ai-dev/.gitignore'), 'utf8'),
-    'worktrees/\nchanges/*/project\n'
-  )
   assert.equal(await readFile(path.join(fixture.projectDir, '.cursor/rules/prd-to-code.mdc'), 'utf8'), 'rule\n')
   assert.equal(
     await readFile(path.join(fixture.projectDir, '.agents/skills/prd-to-code/SKILL.md'), 'utf8'),

@@ -1,6 +1,6 @@
 {
   "name": "frontend-work-flow",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Review-gated frontend PRD-to-code workflow for Codex and Cursor",
   "repository": "github:bi554lecex/frontend-work-flow",
   "homepage": "https://github.com/bi554lecex/frontend-work-flow#readme",

@@ -65,16 +65,13 @@ function timestamp(date) {
   return date.toISOString().replaceAll('-', '').replaceAll(':', '').replace('.000', '')
 }
 
-async function buildPlan(sourceRoot, destinationRoot, reportRoot, mapRelative = relative => relative) {
+async function buildPlan(sourceRoot, destinationRoot, reportRoot) {
   const files = await listFiles(sourceRoot)
-  return files.map(relative => {
-    const destinationRelative = mapRelative(relative)
-    return {
-      source: path.join(sourceRoot, relative),
-      destination: path.join(destinationRoot, destinationRelative),
-      reportPath: path.relative(reportRoot, path.join(destinationRoot, destinationRelative))
-    }
-  })
+  return files.map(relative => ({
+    source: path.join(sourceRoot, relative),
+    destination: path.join(destinationRoot, relative),
+    reportPath: path.relative(reportRoot, path.join(destinationRoot, relative))
+  }))
 }
 
 async function classifyPlan(plan) {
@@ -201,12 +198,7 @@ export async function runCli(argv, options = {}) {
     if (!await exists(templateRoot)) throw new Error(`Packaged assets not found: ${templateRoot}`)
     if (!await exists(skillRoot)) throw new Error(`Packaged assets not found: ${skillRoot}`)
     plan = [
-      ...await buildPlan(
-        templateRoot,
-        reportRoot,
-        reportRoot,
-        relative => relative === '.ai-dev/gitignore.template' ? '.ai-dev/.gitignore' : relative
-      ),
+      ...await buildPlan(templateRoot, reportRoot, reportRoot),
       ...await buildPlan(
         skillRoot,
         path.join(reportRoot, '.agents/skills'),

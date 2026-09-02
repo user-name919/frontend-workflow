@@ -4,28 +4,29 @@ import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 
-const [, , rawChangeDir] = process.argv
-if (!rawChangeDir) {
-  console.error('Usage: node .ai-dev/scripts/validate-change.mjs <change-dir>')
+const [, , rawFeatureDir] = process.argv
+if (!rawFeatureDir) {
+  console.error('Usage: node .ai-dev/scripts/validate-change.mjs <feature-dir>')
   process.exit(1)
 }
 
-const changeDir = path.resolve(rawChangeDir)
+const featureDir = path.resolve(rawFeatureDir)
 const requiredFiles = [
   'status.json',
-  'worktree.json',
-  'code-change.md',
-  'source-index.md',
-  'scope.md',
-  'evidence.md',
-  'open-questions.md',
-  'frontend-spec.md',
-  'implementation-plan.md',
-  'tasks.md',
-  'acceptance.md',
-  'traceability.md',
-  'verification.md'
+  'artifacts/analysis/source-index.md',
+  'artifacts/analysis/scope.md',
+  'artifacts/analysis/evidence.md',
+  'artifacts/analysis/open-questions.md',
+  'artifacts/design/frontend-spec.md',
+  'artifacts/design/implementation-plan.md',
+  'artifacts/design/tasks.md',
+  'artifacts/design/acceptance.md',
+  'artifacts/design/traceability.md',
+  'artifacts/coding-changes/changed-files.json',
+  'artifacts/coding-changes/changes.patch',
+  'artifacts/verification/verification.md'
 ]
+const requiredDirectories = ['artifacts/coding-changes/coding', 'revisions']
 const states = new Set([
   'INGEST',
   'SCOPE_REVIEW',
@@ -41,18 +42,32 @@ const states = new Set([
 const errors = []
 for (const file of requiredFiles) {
   try {
-    const fileStat = await stat(path.join(changeDir, file))
+    const fileStat = await stat(path.join(featureDir, file))
     if (!fileStat.isFile()) errors.push(`${file}: not a file`)
   } catch {
     errors.push(`${file}: missing`)
   }
 }
+for (const directory of requiredDirectories) {
+  try {
+    const directoryStat = await stat(path.join(featureDir, directory))
+    if (!directoryStat.isDirectory()) errors.push(`${directory}: not a directory`)
+  } catch {
+    errors.push(`${directory}: missing`)
+  }
+}
 
 let status
 try {
-  status = JSON.parse(await readFile(path.join(changeDir, 'status.json'), 'utf8'))
+  status = JSON.parse(await readFile(path.join(featureDir, 'status.json'), 'utf8'))
   if (!states.has(status.state)) errors.push(`status.json: invalid state ${status.state}`)
   if (!status.id || !status.title) errors.push('status.json: id and title are required')
+  if (status.id && path.basename(featureDir) !== status.id) errors.push('status.json: id must match the feature directory')
+  if (!['document', 'user', 'generated'].includes(status.idSource)) errors.push('status.json: invalid idSource')
+  if (!Array.isArray(status.externalIds)) errors.push('status.json: externalIds must be an array')
+  if (!status.project?.root || !status.project?.baseCommit || !Array.isArray(status.project?.initialChanges)) {
+    errors.push('status.json: project root, baseCommit, and initialChanges are required')
+  }
   if (!Number.isInteger(status.consistency?.revision) || status.consistency.revision < 0) {
     errors.push('status.json: consistency.revision must be a non-negative integer')
   }
@@ -86,4 +101,4 @@ if (errors.length) {
   process.exit(1)
 }
 
-console.log(`Valid change: ${path.relative(process.cwd(), changeDir)} (${status.state})`)
+console.log(`Valid feature: ${path.relative(process.cwd(), featureDir)} (${status.state})`)

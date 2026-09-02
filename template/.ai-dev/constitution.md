@@ -14,7 +14,7 @@
 
 ## Changes
 
-- Preserve existing and unrelated worktree changes.
+- Preserve existing and unrelated changes in the developer's real project.
 - Make the smallest coherent change that satisfies approved requirements.
 - Match current architecture and style unless an approved plan explicitly changes them.
 

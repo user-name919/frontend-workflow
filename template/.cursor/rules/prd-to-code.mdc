@@ -9,14 +9,14 @@ Use `.ai-dev/changes/<change>/status.json` as the state machine. Perform only th
 
 Require source or repository evidence for material claims. Apply the workflow evidence labels and do not implement unresolved inferences, conflicts, contract gaps, unlocated requirements, backend-owned behavior, or work belonging to another repository.
 
-Preserve existing changes. Implement one approved task at a time. Do not automatically commit, merge, push, or deploy. Run the repository verification commands and update `traceability.md` and `verification.md`.
+Preserve existing changes. Implement one approved task at a time in the real project recorded by the feature status. Do not automatically commit, merge, push, or deploy. Run the repository verification commands and update the feature's traceability and verification artifacts.
 
-After implementation-plan approval, create or reuse the isolated Worktree with `node .ai-dev/scripts/init-worktree.mjs <change-dir>`. Inspect, modify, and verify business code only through `<change-dir>/project`. Determine framework, versions, package manager, and commands from the linked repository itself; do not assume a predefined project profile.
+Inspect, modify, run, and verify business code directly in the developer's current project so the Agent and human reviewer use the same local environment. Do not require a Worktree or use artifact links as the execution path. Determine framework, versions, package manager, and commands from the real repository itself.
 
-Before editing an existing workflow artifact, run `node .ai-dev/scripts/update-consistency.mjs <change-dir> mark <artifact>`. Refresh the downstream files listed in `status.json.consistency.staleArtifacts`, then resolve only the files actually updated. Artifact synchronization must not move `status.json.state` backward. Never pass a gate while stale artifacts remain.
+After implementation, run `node .ai-dev/scripts/record-code-changes.mjs <feature-dir> <file...>` to create the changed-file manifest, live file links, and final patch. Before editing an existing workflow artifact, mark its relative artifact path with `update-consistency.mjs`; refresh the downstream files, then resolve only the files actually updated. Artifact synchronization must not move `status.json.state` backward.
 
 Before presenting a gate, run:
 
 ```bash
-node .ai-dev/scripts/validate-change.mjs <change-dir>
+node .ai-dev/scripts/validate-change.mjs <feature-dir>
 ```

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
@@ -50,29 +50,50 @@ async function saveStatus(statusPath, status) {
 
 export async function markArtifactChanged(rawChangeDir, artifact, options = {}) {
   const { status, graph, statusPath } = await readWorkspace(rawChangeDir)
+  const changeDir = path.resolve(rawChangeDir)
   const now = options.now || (() => new Date())
   const current = consistency(status)
   const stale = new Set(current.staleArtifacts)
   stale.delete(artifact)
   for (const downstream of downstreamArtifacts(graph, artifact)) stale.add(downstream)
 
+  const invalidatedApprovals = []
   for (const approval of graph[artifact].invalidatesApprovals || []) {
+    if (status.approvals?.[approval]) invalidatedApprovals.push(approval)
     if (status.approvals && approval in status.approvals) status.approvals[approval] = null
   }
 
   const changedAt = now().toISOString()
+  const revision = current.revision + 1
+  const revisionFile = `revisions/revision-${String(revision).padStart(4, '0')}.json`
+  const staleArtifacts = [...stale].sort()
   status.updatedAt = changedAt
   status.consistency = {
-    revision: current.revision + 1,
-    staleArtifacts: [...stale].sort(),
-    lastChange: { artifact, changedAt }
+    revision,
+    staleArtifacts,
+    lastChange: { artifact, changedAt, revisionFile }
   }
+  const revisionRecord = {
+    revision,
+    state: status.state,
+    changedArtifact: artifact,
+    changedAt,
+    invalidatedApprovals,
+    staleArtifacts,
+    resolvedArtifacts: [],
+    remainingStaleArtifacts: staleArtifacts,
+    resolvedAt: null
+  }
+  const revisionPath = path.join(changeDir, revisionFile)
+  await mkdir(path.dirname(revisionPath), { recursive: true })
+  await writeFile(revisionPath, `${JSON.stringify(revisionRecord, null, 2)}\n`)
   return saveStatus(statusPath, status)
 }
 
 export async function resolveArtifacts(rawChangeDir, artifacts, options = {}) {
   if (!artifacts.length) throw new Error('At least one refreshed artifact is required')
   const { status, graph, statusPath } = await readWorkspace(rawChangeDir)
+  const changeDir = path.resolve(rawChangeDir)
   for (const artifact of artifacts) {
     if (!graph[artifact]) throw new Error(`Unknown artifact: ${artifact}`)
   }
@@ -85,6 +106,17 @@ export async function resolveArtifacts(rawChangeDir, artifacts, options = {}) {
     ...current,
     staleArtifacts: current.staleArtifacts.filter(artifact => !refreshed.has(artifact))
   }
+  const revisionFile = current.lastChange?.revisionFile
+  if (!revisionFile) throw new Error('Current consistency revision has no revision record')
+  const revisionPath = path.join(changeDir, revisionFile)
+  const revisionRecord = JSON.parse(await readFile(revisionPath, 'utf8'))
+  revisionRecord.resolvedArtifacts = [...new Set([
+    ...(revisionRecord.resolvedArtifacts || []),
+    ...artifacts.filter(artifact => current.staleArtifacts.includes(artifact))
+  ])].sort()
+  revisionRecord.remainingStaleArtifacts = status.consistency.staleArtifacts
+  revisionRecord.resolvedAt = updatedAt
+  await writeFile(revisionPath, `${JSON.stringify(revisionRecord, null, 2)}\n`)
   return saveStatus(statusPath, status)
 }
 
@@ -106,4 +138,3 @@ if (invokedPath === fileURLToPath(import.meta.url)) {
     process.exit(1)
   }
 }
-

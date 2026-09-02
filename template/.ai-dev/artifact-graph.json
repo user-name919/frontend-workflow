@@ -1,47 +1,50 @@
 {
-  "source-index.md": {
-    "downstream": ["scope.md", "evidence.md", "open-questions.md"],
+  "artifacts/analysis/source-index.md": {
+    "downstream": ["artifacts/analysis/scope.md", "artifacts/analysis/evidence.md", "artifacts/analysis/open-questions.md"],
     "invalidatesApprovals": ["scope", "spec", "plan", "final"]
   },
-  "scope.md": {
-    "downstream": ["frontend-spec.md"],
+  "artifacts/analysis/scope.md": {
+    "downstream": ["artifacts/design/frontend-spec.md"],
     "invalidatesApprovals": ["scope", "spec", "plan", "final"]
   },
-  "evidence.md": {
-    "downstream": ["open-questions.md", "frontend-spec.md"],
+  "artifacts/analysis/evidence.md": {
+    "downstream": ["artifacts/analysis/open-questions.md", "artifacts/design/frontend-spec.md"],
     "invalidatesApprovals": ["scope", "spec", "plan", "final"]
   },
-  "open-questions.md": {
-    "downstream": ["scope.md", "frontend-spec.md"],
+  "artifacts/analysis/open-questions.md": {
+    "downstream": ["artifacts/analysis/scope.md", "artifacts/design/frontend-spec.md"],
     "invalidatesApprovals": ["scope", "spec", "plan", "final"]
   },
-  "frontend-spec.md": {
-    "downstream": ["acceptance.md", "implementation-plan.md"],
+  "artifacts/design/frontend-spec.md": {
+    "downstream": ["artifacts/design/acceptance.md", "artifacts/design/implementation-plan.md"],
     "invalidatesApprovals": ["spec", "plan", "final"]
   },
-  "acceptance.md": {
-    "downstream": ["traceability.md", "verification.md"],
+  "artifacts/design/acceptance.md": {
+    "downstream": ["artifacts/design/traceability.md", "artifacts/verification/verification.md"],
     "invalidatesApprovals": ["spec", "plan", "final"]
   },
-  "implementation-plan.md": {
-    "downstream": ["tasks.md"],
+  "artifacts/design/implementation-plan.md": {
+    "downstream": ["artifacts/design/tasks.md"],
     "invalidatesApprovals": ["plan", "final"]
   },
-  "tasks.md": {
-    "downstream": ["traceability.md", "code-change.md"],
+  "artifacts/design/tasks.md": {
+    "downstream": ["artifacts/design/traceability.md", "artifacts/coding-changes/changed-files.json"],
     "invalidatesApprovals": ["plan", "final"]
   },
-  "traceability.md": {
-    "downstream": ["verification.md"],
+  "artifacts/design/traceability.md": {
+    "downstream": ["artifacts/verification/verification.md"],
     "invalidatesApprovals": ["final"]
   },
-  "code-change.md": {
-    "downstream": ["verification.md"],
+  "artifacts/coding-changes/changed-files.json": {
+    "downstream": ["artifacts/coding-changes/changes.patch"],
     "invalidatesApprovals": ["final"]
   },
-  "verification.md": {
+  "artifacts/coding-changes/changes.patch": {
+    "downstream": ["artifacts/verification/verification.md"],
+    "invalidatesApprovals": ["final"]
+  },
+  "artifacts/verification/verification.md": {
     "downstream": [],
     "invalidatesApprovals": ["final"]
   }
 }
-

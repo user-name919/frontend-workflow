@@ -1,9 +1,17 @@
 {
-  "id": "{{CHANGE_ID}}",
-  "title": "{{TITLE}}",
+  "id": null,
+  "title": null,
+  "idSource": null,
+  "externalIds": [],
   "state": "INGEST",
-  "createdAt": "{{CREATED_AT}}",
-  "updatedAt": "{{CREATED_AT}}",
+  "createdAt": null,
+  "updatedAt": null,
+  "project": {
+    "root": null,
+    "branch": null,
+    "baseCommit": null,
+    "initialChanges": []
+  },
   "consistency": {
     "revision": 0,
     "staleArtifacts": [],
