@@ -32,6 +32,7 @@ async function makeChange() {
     title: 'Demo',
     idSource: 'user',
     externalIds: [],
+    schemaVersion: 2,
     state: 'IMPLEMENTING',
     project: {
       root,
@@ -49,6 +50,24 @@ async function makeChange() {
       revision: 0,
       staleArtifacts: [],
       lastChange: null
+    },
+    control: {
+      version: 0,
+      nextEvent: 1,
+      events: [],
+      blocked: null,
+      artifactStatus: null
+    },
+    policy: {
+      mode: 'strict',
+      delegation: null,
+      maxFixRounds: 3
+    },
+    reviews: {},
+    runtime: {
+      activeTaskId: null,
+      attempts: {},
+      taskResults: {}
     }
   }, null, 2)}\n`)
   return { root, changeDir }

@@ -3,6 +3,7 @@
   "title": null,
   "idSource": null,
   "externalIds": [],
+  "schemaVersion": 2,
   "state": "INGEST",
   "createdAt": null,
   "updatedAt": null,
@@ -15,12 +16,31 @@
   "consistency": {
     "revision": 0,
     "staleArtifacts": [],
-    "lastChange": null
+    "lastChange": null,
+    "artifactDigests": {}
   },
   "approvals": {
     "scope": null,
     "spec": null,
     "plan": null,
     "final": null
+  },
+  "control": {
+    "version": 0,
+    "nextEvent": 1,
+    "events": [],
+    "blocked": null,
+    "artifactStatus": null
+  },
+  "policy": {
+    "mode": "strict",
+    "delegation": null,
+    "maxFixRounds": 3
+  },
+  "reviews": {},
+  "runtime": {
+    "activeTaskId": null,
+    "attempts": {},
+    "taskResults": {}
   }
 }

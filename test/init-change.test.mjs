@@ -56,6 +56,9 @@ test('creates a layered feature workspace from an explicit business requirement 
   assert.equal(status.project.branch, 'main')
   assert.equal(status.project.baseCommit, baseCommit)
   assert.deepEqual(status.project.initialChanges, [{ status: '??', path: 'local.env' }])
+  assert.equal(status.schemaVersion, 2)
+  assert.equal(status.control.version, 0)
+  assert.equal(status.policy.mode, 'strict')
 
   for (const relative of [
     'artifacts/analysis',

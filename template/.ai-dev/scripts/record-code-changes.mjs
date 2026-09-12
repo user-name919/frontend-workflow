@@ -7,6 +7,8 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 
+import { mutateFeature, readFeature } from './lib/workspace-store.mjs'
+
 const execFile = promisify(execFileCallback)
 
 async function exists(target) {
@@ -94,8 +96,10 @@ async function ensureCodeLink(codingRoot, projectRoot, file) {
 export async function recordCodeChanges(rawFeatureDir, rawPaths, options = {}) {
   if (!rawPaths?.length) throw new Error('At least one changed file path is required')
   const featureDir = await realpath(path.resolve(rawFeatureDir))
-  const statusPath = path.join(featureDir, 'status.json')
-  const status = JSON.parse(await readFile(statusPath, 'utf8'))
+  const status = await readFeature(featureDir)
+  const expectedVersion = Number.isInteger(options.expectedVersion)
+    ? options.expectedVersion
+    : status.control.version
   const projectRoot = await realpath(status.project?.root)
   const gitRoot = await realpath(await git(projectRoot, 'rev-parse', '--show-toplevel'))
   if (projectRoot !== gitRoot) throw new Error('status.json project root does not match the Git repository')
@@ -147,19 +151,46 @@ export async function recordCodeChanges(rawFeatureDir, rawPaths, options = {}) {
 
   const now = options.now || new Date()
   const branch = await git(projectRoot, 'branch', '--show-current')
+
+  // Detect dirty paths vs base that were not declared in rawPaths (final must not silently drop them).
+  const declared = new Set(uniquePaths.map((file) => file.relative))
+  const porcelain = await git(projectRoot, 'status', '--porcelain=v1', '--untracked-files=all')
+  const undeclaredChanges = []
+  for (const line of porcelain.split('\n').filter(Boolean)) {
+    const relative = line.slice(3).split(path.sep).join('/')
+    if (!relative || relative.startsWith('.ai-dev/') || declared.has(relative)) continue
+    if (initialPaths.has(relative)) continue
+    undeclaredChanges.push(relative)
+  }
+
   const manifest = {
     projectRoot,
     branch: branch || null,
     baseCommit: status.project.baseCommit,
     recordedAt: now.toISOString(),
-    files: manifestFiles
+    files: manifestFiles,
+    undeclaredChanges,
+    warnings: undeclaredChanges.length
+      ? ['Undeclared dirty paths detected; include them in record-code-changes or confirm they are out of scope for final']
+      : [],
   }
   await Promise.all([
     writeFile(path.join(codingChangesDir, 'changed-files.json'), `${JSON.stringify(manifest, null, 2)}\n`),
     writeFile(path.join(codingChangesDir, 'changes.patch'), patches.length ? `${patches.join('\n')}\n` : '')
   ])
-  status.updatedAt = manifest.recordedAt
-  await writeFile(statusPath, `${JSON.stringify(status, null, 2)}\n`)
+
+  await mutateFeature(
+    featureDir,
+    {
+      expectedVersion,
+      event: {
+        type: 'coding.record',
+        actor: options.actor || 'system',
+        data: { fileCount: manifest.files.length },
+      },
+    },
+    () => {},
+  )
   return manifest
 }
 

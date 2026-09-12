@@ -37,6 +37,44 @@ INGEST
 
 `state` 只表示当前执行阶段，`status.json.consistency` 单独记录产物修订号、过期产物和最近一次变更。修改上游产物时保持当前 state，在当前阶段同步刷新下游产物，不通过回退状态重跑流程。
 
+`status.json.schemaVersion` 当前为 `2`。所有状态写入经 `scripts/lib/workspace-store.mjs` 原子提交（`control.version` + 事件）。旧 Workspace 需先迁移，不可静默升级：
+
+```bash
+node .ai-dev/scripts/workflow-control.mjs <feature-dir> inspect
+node .ai-dev/scripts/workflow-control.mjs <feature-dir> migrate
+```
+
+`inspect` 只读，不修改状态。迁移会备份到 `revisions/migration-v1-status.json`，标记 `control.artifactStatus=NEEDS_STRUCTURED_IMPORT`，**不**自动批准，也**不**提供新的质量保证。结构化导入：
+
+```bash
+node .ai-dev/scripts/import-artifacts.mjs <feature-dir> draft --request draft-input.json
+node .ai-dev/scripts/import-artifacts.mjs <feature-dir> accept --draft revisions/import-draft.json --request accept.json
+```
+
+来源/需求/问题以 `artifacts/analysis/intake.json` 为权威；验收/任务以 `artifacts/design/delivery.json` 为权威。对应 Markdown 表格由渲染生成，禁止手工双维护：
+
+```bash
+node .ai-dev/scripts/render-artifacts.mjs <feature-dir>
+```
+
+阶段准入（结构检查 ≠ 语义正确）：
+
+```bash
+node .ai-dev/scripts/validate-change.mjs <feature-dir> --gate scope --json
+node .ai-dev/scripts/validate-change.mjs <feature-dir> --gate plan --json
+```
+
+阶段迁移、阻断与恢复、人工批准：
+
+```bash
+node .ai-dev/scripts/workflow-control.mjs <feature-dir> transition --request request.json
+node .ai-dev/scripts/workflow-control.mjs <feature-dir> block --request request.json
+node .ai-dev/scripts/workflow-control.mjs <feature-dir> resume --request request.json
+node .ai-dev/scripts/workflow-control.mjs <feature-dir> approve --request request.json
+```
+
+修改类请求必须包含 `expectedVersion`（等于当前 `control.version`）。`approve` 还必须提供人工决定来源 `decisionRef`。`BLOCKED` 恢复只回到 `control.blocked.suspendedFrom`，并重新校验前置批准；缺少 `suspendedFrom` 时需人工指定原阶段后再恢复。
+
 ## 产物一致性
 
 修改已经生成的产物前，传入它相对需求 Workspace 的路径：
@@ -81,12 +119,13 @@ node .ai-dev/scripts/update-consistency.mjs <feature-dir> resolve <artifact-path
 ## 阶段 1：INGEST
 
 1. 使用 `init-change.mjs` 创建需求 Workspace；记录需求 ID 来源和真实项目基线。
-2. 在 `artifacts/analysis/source-index.md` 登记来源标题、类型、路径、版本和敏感级别。
-3. 从摘录中移除凭据、访问令牌、Cookie 和个人数据。
-4. 直接检查真实项目的说明文件、依赖清单、锁文件、脚本、构建配置、源码结构、Git 状态和已有本地改动。
-5. 根据仓库证据判断框架、版本、包管理器、代码规范和可用命令，不使用预设项目类型。
-6. 不得修改业务代码。
-7. 生成 analysis 下的范围、证据和待确认问题，将状态转为 `SCOPE_REVIEW`，然后停止。
+2. 用 `templates/prd-input.md` 或既有材料整理 `artifacts/analysis/intake.json`（来源、证据、需求、问题）；非标准 PRD 由 Agent 整理草稿，原文只作证据。
+3. 运行 `render-artifacts.mjs` 生成 source-index / evidence / open-questions 视图。
+4. 从摘录中移除凭据、访问令牌、Cookie 和个人数据。
+5. 直接检查真实项目的说明文件、依赖清单、锁文件、脚本、构建配置、源码结构、Git 状态和已有本地改动。
+6. 根据仓库证据判断框架、版本、包管理器、代码规范和可用命令，不使用预设项目类型。
+7. 不得修改业务代码。
+8. 写清 `scope.md` 后，将状态转为 `SCOPE_REVIEW`，然后停止。
 
 ## 审核点 1：SCOPE_REVIEW
 

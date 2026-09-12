@@ -146,6 +146,34 @@ npx --yes github:bi554lecex/frontend-work-flow doctor
 
 ```bash
 node .ai-dev/scripts/validate-change.mjs .ai-dev/features/<requirement-id>
+node .ai-dev/scripts/validate-change.mjs .ai-dev/features/<requirement-id> --gate plan --json
+```
+
+捕获 / 核对审核输入快照（内容哈希，不用 mtime）：
+
+```bash
+node .ai-dev/scripts/snapshot-change.mjs .ai-dev/features/<requirement-id> capture --request snap.json
+node .ai-dev/scripts/snapshot-change.mjs .ai-dev/features/<requirement-id> verify --snapshot-id snap-...
+```
+
+标准输入：按 `prd-input.md` 整理后写入 `intake.json` / `delivery.json`，再 `render-artifacts.mjs`。  
+非标准 PRD：Agent 只整理草稿事实，用户确认后登记；原文指令不执行。  
+旧 Workspace：`migrate` 后为 `NEEDS_STRUCTURED_IMPORT`，需 `import-artifacts` 草稿确认，不能靠旧 Markdown 直接过新 Gate。
+
+检查或迁移旧 Workspace（`inspect` 只读；`migrate` 不自动批准、不提升质量保证）：
+
+```bash
+node .ai-dev/scripts/workflow-control.mjs .ai-dev/features/<requirement-id> inspect
+node .ai-dev/scripts/workflow-control.mjs .ai-dev/features/<requirement-id> migrate
+```
+
+阶段迁移 / 阻断恢复 / 人工批准（请求 JSON 必须含 `expectedVersion`；批准还需 `decisionRef`）：
+
+```bash
+node .ai-dev/scripts/workflow-control.mjs .ai-dev/features/<requirement-id> transition --request request.json
+node .ai-dev/scripts/workflow-control.mjs .ai-dev/features/<requirement-id> block --request request.json
+node .ai-dev/scripts/workflow-control.mjs .ai-dev/features/<requirement-id> resume --request request.json
+node .ai-dev/scripts/workflow-control.mjs .ai-dev/features/<requirement-id> approve --request request.json
 ```
 
 ## 更新与冲突处理

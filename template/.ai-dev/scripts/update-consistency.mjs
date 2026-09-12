@@ -1,23 +1,16 @@
 #!/usr/bin/env node
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile, open } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
-async function readWorkspace(rawChangeDir) {
+import { mutateFeature, readFeature, StoreError } from './lib/workspace-store.mjs'
+
+async function readGraph(rawChangeDir) {
   const changeDir = path.resolve(rawChangeDir)
-  const statusPath = path.join(changeDir, 'status.json')
   const graphPath = path.resolve(changeDir, '../..', 'artifact-graph.json')
-  const [statusText, graphText] = await Promise.all([
-    readFile(statusPath, 'utf8'),
-    readFile(graphPath, 'utf8')
-  ])
-  return {
-    status: JSON.parse(statusText),
-    graph: JSON.parse(graphText),
-    statusPath
-  }
+  return JSON.parse(await readFile(graphPath, 'utf8'))
 }
 
 function downstreamArtifacts(graph, artifact) {
@@ -39,85 +32,148 @@ function consistency(status) {
   return status.consistency || {
     revision: 0,
     staleArtifacts: [],
-    lastChange: null
+    lastChange: null,
   }
 }
 
-async function saveStatus(statusPath, status) {
-  await writeFile(statusPath, `${JSON.stringify(status, null, 2)}\n`)
-  return status
-}
-
+/**
+ * Mark an artifact changed and propagate stale downstream.
+ * Reads control.version at entry when expectedVersion is omitted.
+ */
 export async function markArtifactChanged(rawChangeDir, artifact, options = {}) {
-  const { status, graph, statusPath } = await readWorkspace(rawChangeDir)
   const changeDir = path.resolve(rawChangeDir)
+  const graph = await readGraph(changeDir)
+  if (!graph[artifact]) throw new Error(`Unknown artifact: ${artifact}`)
+
+  const currentStatus = await readFeature(changeDir)
+  const expectedVersion = Number.isInteger(options.expectedVersion)
+    ? options.expectedVersion
+    : currentStatus.control.version
+
   const now = options.now || (() => new Date())
-  const current = consistency(status)
+  const current = consistency(currentStatus)
   const stale = new Set(current.staleArtifacts)
   stale.delete(artifact)
   for (const downstream of downstreamArtifacts(graph, artifact)) stale.add(downstream)
 
   const invalidatedApprovals = []
   for (const approval of graph[artifact].invalidatesApprovals || []) {
-    if (status.approvals?.[approval]) invalidatedApprovals.push(approval)
-    if (status.approvals && approval in status.approvals) status.approvals[approval] = null
+    if (currentStatus.approvals?.[approval]) invalidatedApprovals.push(approval)
   }
 
   const changedAt = now().toISOString()
   const revision = current.revision + 1
   const revisionFile = `revisions/revision-${String(revision).padStart(4, '0')}.json`
   const staleArtifacts = [...stale].sort()
-  status.updatedAt = changedAt
-  status.consistency = {
-    revision,
-    staleArtifacts,
-    lastChange: { artifact, changedAt, revisionFile }
-  }
+  const revisionPath = path.join(changeDir, revisionFile)
   const revisionRecord = {
     revision,
-    state: status.state,
+    state: currentStatus.state,
     changedArtifact: artifact,
     changedAt,
     invalidatedApprovals,
     staleArtifacts,
     resolvedArtifacts: [],
     remainingStaleArtifacts: staleArtifacts,
-    resolvedAt: null
+    resolvedAt: null,
   }
-  const revisionPath = path.join(changeDir, revisionFile)
+
   await mkdir(path.dirname(revisionPath), { recursive: true })
-  await writeFile(revisionPath, `${JSON.stringify(revisionRecord, null, 2)}\n`)
-  return saveStatus(statusPath, status)
+  // Unique create — never overwrite an existing revision file.
+  try {
+    const handle = await open(revisionPath, 'wx')
+    try {
+      await handle.writeFile(`${JSON.stringify(revisionRecord, null, 2)}\n`)
+    } finally {
+      await handle.close()
+    }
+  } catch (error) {
+    if (error.code === 'EEXIST') {
+      throw new Error(`Revision file already exists: ${revisionFile}`)
+    }
+    throw error
+  }
+
+  try {
+    return await mutateFeature(
+      changeDir,
+      {
+        expectedVersion,
+        event: {
+          type: 'consistency.mark',
+          actor: options.actor || 'system',
+          data: { artifact, revisionFile },
+        },
+      },
+      (status) => {
+        for (const approval of invalidatedApprovals) {
+          if (status.approvals && approval in status.approvals) status.approvals[approval] = null
+        }
+        status.consistency = {
+          revision,
+          staleArtifacts,
+          lastChange: { artifact, changedAt, revisionFile },
+          artifactDigests: {
+            ...(status.consistency?.artifactDigests || {}),
+          },
+        }
+      },
+    )
+  } catch (error) {
+    if (error instanceof StoreError && error.code === 'VERSION_CONFLICT') {
+      throw error
+    }
+    throw error
+  }
 }
 
 export async function resolveArtifacts(rawChangeDir, artifacts, options = {}) {
   if (!artifacts.length) throw new Error('At least one refreshed artifact is required')
-  const { status, graph, statusPath } = await readWorkspace(rawChangeDir)
   const changeDir = path.resolve(rawChangeDir)
+  const graph = await readGraph(changeDir)
   for (const artifact of artifacts) {
     if (!graph[artifact]) throw new Error(`Unknown artifact: ${artifact}`)
   }
 
-  const current = consistency(status)
-  const refreshed = new Set(artifacts)
-  const updatedAt = (options.now || (() => new Date()))().toISOString()
-  status.updatedAt = updatedAt
-  status.consistency = {
-    ...current,
-    staleArtifacts: current.staleArtifacts.filter(artifact => !refreshed.has(artifact))
-  }
+  const currentStatus = await readFeature(changeDir)
+  const expectedVersion = Number.isInteger(options.expectedVersion)
+    ? options.expectedVersion
+    : currentStatus.control.version
+
+  const current = consistency(currentStatus)
   const revisionFile = current.lastChange?.revisionFile
   if (!revisionFile) throw new Error('Current consistency revision has no revision record')
+
+  const updatedAt = (options.now || (() => new Date()))().toISOString()
   const revisionPath = path.join(changeDir, revisionFile)
   const revisionRecord = JSON.parse(await readFile(revisionPath, 'utf8'))
-  revisionRecord.resolvedArtifacts = [...new Set([
+  const resolvedSet = new Set([
     ...(revisionRecord.resolvedArtifacts || []),
-    ...artifacts.filter(artifact => current.staleArtifacts.includes(artifact))
-  ])].sort()
-  revisionRecord.remainingStaleArtifacts = status.consistency.staleArtifacts
+    ...artifacts.filter((artifact) => current.staleArtifacts.includes(artifact)),
+  ])
+  revisionRecord.resolvedArtifacts = [...resolvedSet].sort()
+  const remaining = current.staleArtifacts.filter((artifact) => !new Set(artifacts).has(artifact))
+  revisionRecord.remainingStaleArtifacts = remaining
   revisionRecord.resolvedAt = updatedAt
   await writeFile(revisionPath, `${JSON.stringify(revisionRecord, null, 2)}\n`)
-  return saveStatus(statusPath, status)
+
+  return mutateFeature(
+    changeDir,
+    {
+      expectedVersion,
+      event: {
+        type: 'consistency.resolve',
+        actor: options.actor || 'system',
+        data: { artifacts, revisionFile },
+      },
+    },
+    (status) => {
+      status.consistency = {
+        ...consistency(status),
+        staleArtifacts: remaining,
+      }
+    },
+  )
 }
 
 const invokedPath = process.argv[1] && path.resolve(process.argv[1])

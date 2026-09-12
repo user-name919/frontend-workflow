@@ -29,6 +29,38 @@ async function gitStatus(cwd) {
   return result.stdout.trimEnd()
 }
 
+async function writeCodeBaseline(featureDir, projectRoot, initialChanges, baseCommit) {
+  const { createHash } = await import('node:crypto')
+  const entries = []
+  for (const change of initialChanges) {
+    const absolute = path.join(projectRoot, change.path)
+    let digest = null
+    let missing = false
+    try {
+      const bytes = await readFile(absolute)
+      digest = createHash('sha256').update(bytes).digest('hex')
+    } catch {
+      missing = true
+    }
+    entries.push({
+      path: change.path,
+      status: change.status,
+      sha256: digest,
+      missing,
+    })
+  }
+  const baseline = {
+    createdAt: new Date().toISOString(),
+    baseCommit,
+    note: 'Content digests of paths dirty/untracked at init. preExisting cannot precisely split later co-owned edits.',
+    files: entries,
+  }
+  await writeFile(
+    path.join(featureDir, 'revisions/code-baseline.json'),
+    `${JSON.stringify(baseline, null, 2)}\n`,
+  )
+}
+
 function datePart(date) {
   return [date.getFullYear(), date.getMonth() + 1, date.getDate()]
     .map((value, index) => index === 0 ? String(value) : String(value).padStart(2, '0'))
@@ -92,6 +124,7 @@ export async function createFeatureWorkspace(rawProjectRoot, options) {
     title: options.title.trim(),
     idSource,
     externalIds: [],
+    schemaVersion: 2,
     createdAt: timestamp,
     updatedAt: timestamp,
     project: {
@@ -99,9 +132,33 @@ export async function createFeatureWorkspace(rawProjectRoot, options) {
       branch: branch || null,
       baseCommit,
       initialChanges: parseInitialChanges(initialStatus)
+    },
+    control: status.control || {
+      version: 0,
+      nextEvent: 1,
+      events: [],
+      blocked: null,
+      artifactStatus: null
+    },
+    policy: status.policy || {
+      mode: 'strict',
+      delegation: null,
+      maxFixRounds: 3
+    },
+    reviews: status.reviews || {},
+    runtime: status.runtime || {
+      activeTaskId: null,
+      attempts: {},
+      taskResults: {}
     }
   })
   await writeFile(statusPath, `${JSON.stringify(status, null, 2)}\n`)
+  await writeCodeBaseline(
+    featureDir,
+    projectRoot,
+    status.project.initialChanges,
+    baseCommit,
+  )
   return featureDir
 }
 
