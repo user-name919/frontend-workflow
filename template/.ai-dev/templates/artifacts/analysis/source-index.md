@@ -1,8 +1,10 @@
+<!-- generated:from=artifacts/analysis/intake.json;kind=source-index;do-not-edit -->
+
 # Source index
 
-| ID | Title | Type | Location/version | Sensitive | Notes |
+| ID | Title | Type | Location/version | Availability | Notes |
 | --- | --- | --- | --- | --- | --- |
-| SRC-001 | [TODO] | PRD/API/Prototype/User | [TODO] | yes/no | [TODO] |
+| — | — | — | — | — | Fill via intake.json then render-artifacts |
 
 ## Sanitization
 

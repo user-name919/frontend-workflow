@@ -1,6 +1,16 @@
 {
+  "artifacts/analysis/intake.json": {
+    "downstream": [
+      "artifacts/analysis/source-index.md",
+      "artifacts/analysis/evidence.md",
+      "artifacts/analysis/open-questions.md",
+      "artifacts/analysis/scope.md",
+      "artifacts/design/delivery.json"
+    ],
+    "invalidatesApprovals": ["scope", "spec", "plan", "final"]
+  },
   "artifacts/analysis/source-index.md": {
-    "downstream": ["artifacts/analysis/scope.md", "artifacts/analysis/evidence.md", "artifacts/analysis/open-questions.md"],
+    "downstream": ["artifacts/analysis/scope.md"],
     "invalidatesApprovals": ["scope", "spec", "plan", "final"]
   },
   "artifacts/analysis/scope.md": {
@@ -17,6 +27,14 @@
   },
   "artifacts/design/frontend-spec.md": {
     "downstream": ["artifacts/design/acceptance.md", "artifacts/design/implementation-plan.md"],
+    "invalidatesApprovals": ["spec", "plan", "final"]
+  },
+  "artifacts/design/delivery.json": {
+    "downstream": [
+      "artifacts/design/acceptance.md",
+      "artifacts/design/tasks.md",
+      "artifacts/design/traceability.md"
+    ],
     "invalidatesApprovals": ["spec", "plan", "final"]
   },
   "artifacts/design/acceptance.md": {

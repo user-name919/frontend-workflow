@@ -1,10 +1,6 @@
+<!-- generated:from=artifacts/design/delivery.json;kind=tasks;do-not-edit -->
+
 # Tasks
 
-## T1 [TODO]
-
-- Requirements: FR-001
-- Allowed files: [TODO]
-- Depends on: none
-- Steps: [TODO]
-- Verify: [TODO]
-- Status: PENDING
+Fill `artifacts/design/delivery.json`, then run `node .ai-dev/scripts/render-artifacts.mjs <feature-dir>`.
+Task execution status comes from `status.runtime.taskResults`, not from editing this file.

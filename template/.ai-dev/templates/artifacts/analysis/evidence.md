@@ -1,5 +1,7 @@
+<!-- generated:from=artifacts/analysis/intake.json;kind=evidence;do-not-edit -->
+
 # Evidence ledger
 
 | ID | Claim | Label | Source pointer | Repository pointer | Consequence |
 | --- | --- | --- | --- | --- | --- |
-| EV-001 | [TODO] | CONFIRMED/CODE_EVIDENCE/INFERRED/CONFLICTED/CONTRACT_GAP/NOT_LOCATED/OUT_OF_SCOPE | [TODO] | [TODO] | [TODO] |
+| — | — | — | — | — | Fill via intake.json then render-artifacts |
