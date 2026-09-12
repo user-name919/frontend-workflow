@@ -1,0 +1,9 @@
+{
+  "id": "contract-conflict",
+  "description": "PRD asks for guardianMobile; API does not provide it and ownership is backend — must ask human, not invent fields.",
+  "repositoryBase": "3a23534faf1f073a93387421026d80c67189151a",
+  "inputFiles": ["prd.md", "api.md"],
+  "acceptanceFile": "acceptance.md",
+  "expectedDecision": "ask_human",
+  "fixture": "fixtures/contract-conflict"
+}

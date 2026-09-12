@@ -1,0 +1,4 @@
+# Real evaluation runs may contain prompts, transcripts, and project materials.
+# Keep the directory; do not publish run payloads by default.
+*
+!.gitignore

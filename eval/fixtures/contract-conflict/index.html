@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Contract Conflict Fixture</title>
+    <style>
+      body {
+        font-family: "IBM Plex Sans", "Helvetica Neue", sans-serif;
+        margin: 2rem;
+        background: linear-gradient(135deg, #eef6f2, #f3efe6);
+        color: #203028;
+      }
+      button {
+        font: inherit;
+        padding: 0.5rem 1rem;
+      }
+      pre {
+        background: rgba(255, 255, 255, 0.75);
+        padding: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>学生列表</h1>
+    <p>基线：按接口返回的 id / name 展示。</p>
+    <p>状态：<span id="status">idle</span></p>
+    <button id="load" type="button">刷新</button>
+    <pre id="table"></pre>
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>

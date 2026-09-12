@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Retry State Fixture</title>
+    <style>
+      body {
+        font-family: Georgia, "Times New Roman", serif;
+        margin: 2rem;
+        background: linear-gradient(160deg, #f7f3ea, #e7eef5);
+        color: #1f2a33;
+      }
+      button {
+        font: inherit;
+        padding: 0.5rem 1rem;
+      }
+      pre {
+        background: rgba(255, 255, 255, 0.7);
+        padding: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>个人资料</h1>
+    <p>基线页面：可加载资料。失败后尚无重试入口。</p>
+    <p>状态：<span id="status">idle</span></p>
+    <button id="load" type="button">加载</button>
+    <pre id="data"></pre>
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>

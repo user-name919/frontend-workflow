@@ -2,3 +2,4 @@
 node_modules/
 coverage/
 .frontend-work-flow-backups/
+eval/.tmp-hash/

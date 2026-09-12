@@ -1,0 +1,9 @@
+{
+  "id": "context-resume",
+  "description": "Two-task notice board change with mid-run context close; resume from disk without redoing T1 or dropping gates.",
+  "repositoryBase": "365d9eba7b735e30e716d70daa01fbb1caba119a",
+  "inputFiles": ["prd.md"],
+  "acceptanceFile": "acceptance.md",
+  "expectedDecision": "deliver",
+  "fixture": "fixtures/context-resume"
+}

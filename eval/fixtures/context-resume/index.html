@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Context Resume Fixture</title>
+    <style>
+      body {
+        font-family: "Source Serif 4", Georgia, serif;
+        margin: 2rem;
+        background: linear-gradient(180deg, #f6f0e8, #e8eef8);
+        color: #242018;
+      }
+      label {
+        display: block;
+        margin: 0.75rem 0 0.25rem;
+      }
+      input {
+        font: inherit;
+        width: min(24rem, 100%);
+        padding: 0.4rem 0.5rem;
+      }
+      button {
+        font: inherit;
+        margin-top: 1rem;
+        padding: 0.5rem 1rem;
+      }
+      pre {
+        background: rgba(255, 255, 255, 0.7);
+        padding: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>公告板</h1>
+    <p>基线：仅支持标题。副标题为后续任务。</p>
+    <label for="title">标题</label>
+    <input id="title" type="text" value="开学通知" />
+    <div>
+      <button id="publish" type="button">发布预览</button>
+    </div>
+    <pre id="notice"></pre>
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "id": "retry-state",
+  "description": "Add failure retry to an existing profile request page while preserving the success path.",
+  "repositoryBase": "ff3e8563338d7b41b309f871167e8af42fe2704c",
+  "inputFiles": ["prd.md"],
+  "acceptanceFile": "acceptance.md",
+  "expectedDecision": "deliver",
+  "fixture": "fixtures/retry-state"
+}
