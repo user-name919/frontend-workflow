@@ -13,14 +13,17 @@ Find the repository root, then read `.ai-dev/workflow.md` and `.ai-dev/constitut
 2. Read `status.json`; perform only work allowed by its current state. If `schemaVersion` is missing or `1`, run `node .ai-dev/scripts/workflow-control.mjs <feature-dir> inspect` then `migrate` before other writes. Do not invent approvals during migration.
 3. Build every claim from source documents or repository evidence. Use the evidence labels defined by the workflow.
 4. Separate frontend behavior, backend ownership, interface contracts, cross-repository work, and verification requirements.
-5. Stop at each review gate. Never approve a gate on behalf of a human. Record approvals only via `node .ai-dev/scripts/workflow-control.mjs <feature-dir> approve --request request.json` with a real `decisionRef` and `expectedVersion` from `control.version`.
-6. Change workflow state only through `workflow-control.mjs` (`transition` / `block` / `resume`). Do not hand-edit `status.json.state`. Resume from `BLOCKED` returns to `suspendedFrom` after re-validation; never skip gates by editing state.
-7. Treat the real project recorded in `status.json.project.root` as the only code source. Inspect, modify, run, and verify there so the Agent and developer use the same local environment.
-8. Infer framework, versions, package manager, commands, and conventions from that repository's own evidence. Never require a predefined project profile.
-9. Implement only approved tasks. Keep changes surgical and preserve the pre-existing changes recorded when the feature was initialized.
-10. After code changes, run `node .ai-dev/scripts/record-code-changes.mjs <feature-dir> <file...>` with only the files affected by this requirement. Use `coding-changes/coding` as a live code index and `changes.patch` as the durable snapshot.
-11. Run repository-provided verification commands and record exact commands and results in `artifacts/verification/verification.md`.
-12. Never commit, merge, push, open a PR, deploy, or modify external systems unless the user explicitly requests that separate action.
+5. Stop at each review gate. Never approve a gate on behalf of a human. Record human approvals only via `workflow-control.mjs approve` with a real `decisionRef` and `expectedVersion`. Default policy is strict. Only after an explicit per-feature `delegate` may independent review pass authorize `spec`/`plan` (stored in `status.reviews`, never forging `approvals.*.approvedBy`). `scope` and `final` always require humans.
+6. Change workflow state only through `workflow-control.mjs` (`transition` / `block` / `resume` / `delegate` / `next` / `recover`). Do not hand-edit `status.json.state`. Resume from `BLOCKED` returns to `suspendedFrom` after re-validation; never skip gates by editing state.
+7. For independent review, prepare a packet with `prepare-review` (never reverse-engineer requirements from code), then review it in a **fresh** context with `review-delivery`. Adapt with `record-review.mjs adapt` before `accept`. Contract ok is not a gate. Spec fails before quality; max three repair rounds then human. `self_check` is not independent. Follow `references/reviewer.md` and `references/coordinator.md`.
+8. Ask `workflow-control.mjs next` after each persisted result. Prepare a task brief with `prepare-task.mjs`. Start/accept/inspect/recover through `record-task-result.mjs`. One project writer at a time. Implementer must not dispatch the reviewer (`references/implementer.md`).
+9. Treat the real project recorded in `status.json.project.root` as the only code source. Inspect, modify, run, and verify there so the Agent and developer use the same local environment.
+10. Infer framework, versions, package manager, commands, and conventions from that repository's own evidence. Never require a predefined project profile.
+11. Implement only approved tasks. Keep changes surgical and preserve the pre-existing changes recorded when the feature was initialized.
+12. After code changes, run `node .ai-dev/scripts/record-code-changes.mjs <feature-dir> <file...>` with only the files affected by this requirement. Use `coding-changes/coding` as a live code index and `changes.patch` as the durable snapshot.
+13. Run approved `delivery.verify` commands via `run-verification.mjs`. Do not mark passed unless the command actually ran with exit 0 and the source snapshot stayed fresh. Then refresh `verification.md`.
+14. Never commit, merge, push, open a PR, deploy, or modify external systems unless the user explicitly requests that separate action.
+15. Name the real run mode `autonomous-in-host` or `assisted`. Node does not schedule models. Without a fresh-context host, stay assisted.
 
 ## Keep artifacts consistent
 

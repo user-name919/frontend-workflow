@@ -75,6 +75,30 @@ node .ai-dev/scripts/workflow-control.mjs <feature-dir> approve --request reques
 
 修改类请求必须包含 `expectedVersion`（等于当前 `control.version`）。`approve` 还必须提供人工决定来源 `decisionRef`。`BLOCKED` 恢复只回到 `control.blocked.suspendedFrom`，并重新校验前置批准；缺少 `suspendedFrom` 时需人工指定原阶段后再恢复。
 
+### 独立审核（协议层）
+
+默认 `policy.mode=strict`。仅当用户对本需求明确 `delegate` 后，`spec`/`plan` 可由**独立**审核 `verdict=pass` 作为放行依据（写入 `status.reviews`，不伪造 `approvals.*.approvedBy`）。`scope`/`final` 始终人工。
+
+```bash
+node .ai-dev/scripts/workflow-control.mjs <feature-dir> delegate --request delegate.json
+node .ai-dev/scripts/record-review.mjs <feature-dir> validate --request request.json --report report.json
+node .ai-dev/scripts/record-review.mjs <feature-dir> accept --request request.json --report report.json
+```
+
+编排下一步（先 reconcile，不创建 run；无 freshContextDispatch 时 capability=assisted）：
+
+```bash
+node .ai-dev/scripts/workflow-control.mjs <feature-dir> next
+node .ai-dev/scripts/prepare-task.mjs <feature-dir> T1
+node .ai-dev/scripts/record-task-result.mjs <feature-dir> start --request start.json
+node .ai-dev/scripts/record-task-result.mjs <feature-dir> accept --request accept.json --report result.json
+node .ai-dev/scripts/run-verification.mjs <feature-dir> --request verify.json
+```
+
+阶段审核包用 `prepare-review` 从**已确认需求**生成标准并 `seal`；独立上下文用 `review-delivery` 出报告。两者的 v1 JSON **不能**直接交给 `record-review.mjs`，必须先 `adapt`。校验器 `ok` 不是门禁放行。`scope`/`final` 仍须人工。没有独立宿主时标记 `assisted`，不能改身份字符串假装独立。
+
+中断恢复：先 `record-task-result inspect`，确认宿主 worker 已停后再 `workflow-control recover`（`confirmWorkerStopped: true`）。不得按超时自动再派一个实现者。
+
 ## 产物一致性
 
 修改已经生成的产物前，传入它相对需求 Workspace 的路径：

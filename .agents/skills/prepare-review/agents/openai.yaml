@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prepare Review"
+  short_description: "准备有来源、可追踪且绑定版本的独立审核材料"
+  default_prompt: "Use $prepare-review to prepare an evidence-backed SDD review packet for this change."

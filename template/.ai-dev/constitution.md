@@ -26,6 +26,10 @@
 
 ## Human authority
 
-- A human approves scope, implementation plan, and final diff.
-- The agent must not edit approval records on behalf of a human.
+- Default `policy.mode` is `strict`: a human approves scope, spec, plan, and final.
+- `scope` and `final` are **never** delegated to automated or independent-review auto-release.
+- For a single feature, a human may explicitly authorize `delegated-review` for `spec` and/or `plan` only via `workflow-control.mjs delegate`, with a real `decisionRef`. Independent review pass is recorded under `status.reviews`, and must **not** forge `approvals.*.approvedBy`.
+- The agent must not edit human approval records on behalf of a human.
 - Commit, merge, push, deploy, and external writes require explicit authorization.
+- Protocol validation is not a substitute for a real independent host context. Host dispatch follows `coordinator.md`; without fresh-context tools the run is `assisted`, not autonomous.
+- `prepare-review` / `review-delivery` contract success is not a workflow gate and must be adapted before `record-review`.

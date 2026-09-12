@@ -8,13 +8,16 @@ import { fileURLToPath } from 'node:url'
 import { migrateFeature, StoreError } from './lib/workspace-store.mjs'
 import {
   blockFeature,
+  recordDelegation,
   recordHumanApproval,
   resumeFeature,
   transitionFeature,
 } from './lib/workflow-state.mjs'
+import { computeNext } from './lib/orchestrator.mjs'
+import { recoverReservation } from './lib/task-runs.mjs'
 
 function usage() {
-  return 'Usage: node .ai-dev/scripts/workflow-control.mjs <feature-dir> <migrate|inspect|transition|block|resume|approve> [--request request.json]'
+  return 'Usage: node .ai-dev/scripts/workflow-control.mjs <feature-dir> <migrate|inspect|next|transition|block|resume|approve|delegate|recover> [--request request.json]'
 }
 
 function parseArgs(argv) {
@@ -86,6 +89,14 @@ async function dispatch(featureDir, action, requestPath) {
   switch (action) {
     case 'inspect':
       return inspectFeature(featureDir)
+    case 'next': {
+      const request = await loadRequest(requestPath, false)
+      return computeNext(featureDir, {
+        actor: request.actor || 'orchestrator',
+        capabilities: request.capabilities,
+        gates: request.gates,
+      })
+    }
     case 'migrate':
       return migrateFeature(featureDir)
     case 'transition': {
@@ -119,6 +130,23 @@ async function dispatch(featureDir, action, requestPath) {
         actor: request.actor,
         decisionRef: request.decisionRef,
         expectedVersion: request.expectedVersion,
+      })
+    }
+    case 'delegate': {
+      const request = await loadRequest(requestPath, true)
+      return recordDelegation(featureDir, {
+        actor: request.actor,
+        decisionRef: request.decisionRef,
+        expectedVersion: request.expectedVersion,
+        gates: request.gates,
+      })
+    }
+    case 'recover': {
+      const request = await loadRequest(requestPath, true)
+      return recoverReservation(featureDir, {
+        actor: request.actor,
+        expectedVersion: request.expectedVersion,
+        confirmWorkerStopped: request.confirmWorkerStopped,
       })
     }
     default:

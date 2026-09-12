@@ -10,6 +10,7 @@ import { validateIntake } from './intake.mjs'
 import { validateDelivery, validateDeliveryAsync } from './delivery.mjs'
 import { readFeature } from './workspace-store.mjs'
 import { blockingStale, readGraph } from './consistency.mjs'
+import { gateAuthorized } from './reviews.mjs'
 import { assertSnapshotBoundApproval } from './review-package.mjs'
 
 function err(code, message, extra = {}) {
@@ -141,10 +142,21 @@ export async function evaluateGate(featureDir, gate) {
   }
   for (const upstream of upstreamGates[gate] || []) {
     const approval = status.approvals?.[upstream]
-    if (!approval) continue
-    const bound = await assertSnapshotBoundApproval(resolved, approval, upstream)
-    if (!bound.ok) {
-      errors.push(err(bound.code, bound.message))
+    if (approval) {
+      const bound = await assertSnapshotBoundApproval(resolved, approval, upstream)
+      if (!bound.ok) {
+        errors.push(err(bound.code, bound.message))
+      }
+      continue
+    }
+    // Delegated independent pass may authorize spec/plan without forging approvals.*
+    if (status.policy?.mode === 'delegated-review' && !gateAuthorized(status, upstream)) {
+      errors.push(
+        err(
+          'DELEGATION_INCOMPLETE',
+          `${upstream} lacks human approval and has no accepted independent review under delegation`,
+        ),
+      )
     }
   }
 
@@ -241,6 +253,27 @@ export async function evaluateGate(featureDir, gate) {
               { artifact: task.id },
             ),
           )
+        }
+        if ((task.verify || []).length) {
+          const verificationIds = result?.verificationIds || []
+          const records = status.runtime?.verifications || {}
+          if (!verificationIds.length) {
+            errors.push(
+              err(
+                'MISSING_EXECUTION_EVIDENCE',
+                `task ${task.id} has verify commands but no verification records`,
+                { artifact: task.id },
+              ),
+            )
+          } else if (!verificationIds.some((id) => records[id]?.status === 'passed')) {
+            errors.push(
+              err(
+                'VERIFICATION_FAILED',
+                `task ${task.id} has no passed verification record`,
+                { artifact: task.id },
+              ),
+            )
+          }
         }
       }
     }

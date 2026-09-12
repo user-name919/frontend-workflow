@@ -8,6 +8,7 @@ import { validateFeature } from '../validate-change.mjs'
 import { evaluateGate } from './gates.mjs'
 import { reconcileArtifacts } from './consistency.mjs'
 import { captureSnapshot } from './snapshots.mjs'
+import { gateAuthorized } from './reviews.mjs'
 
 export const MAIN_CHAIN = [
   'INGEST',
@@ -74,8 +75,7 @@ function err(code, message, extra = {}) {
 }
 
 function hasApproval(status, gate) {
-  const approval = status.approvals?.[gate]
-  return Boolean(approval?.approvedBy && approval?.approvedAt)
+  return gateAuthorized(status, gate)
 }
 
 function approvalErrors(status, gates) {
@@ -386,6 +386,76 @@ export async function recordHumanApproval(featureDir, options = {}) {
         approvedAt: new Date().toISOString(),
         decisionRef,
         snapshotId: snapshot.id,
+      }
+    },
+  )
+}
+
+const DELEGATABLE = new Set(['spec', 'plan'])
+
+/**
+ * Explicit per-feature authorization for delegated independent review of spec/plan only.
+ */
+export async function recordDelegation(featureDir, options = {}) {
+  const { expectedVersion, actor, decisionRef, gates } = options
+  if (!actor || !decisionRef || !Number.isInteger(expectedVersion)) {
+    throw new StoreError('INVALID_REQUEST', 'actor, decisionRef, and expectedVersion are required')
+  }
+  if (!Array.isArray(gates) || !gates.length) {
+    throw new StoreError('INVALID_REQUEST', 'gates must be a non-empty array')
+  }
+  for (const gate of gates) {
+    if (!DELEGATABLE.has(gate)) {
+      throw new StoreError('INVALID_DELEGATION', `Cannot delegate ${gate}; only spec|plan allowed`)
+    }
+  }
+
+  const status = await reconcileOrReload(featureDir, expectedVersion, actor)
+  return mutateFeature(
+    featureDir,
+    {
+      expectedVersion: status.control.version,
+      event: {
+        type: 'policy.delegate',
+        actor,
+        data: { gates, decisionRef },
+      },
+    },
+    (draft) => {
+      draft.policy = {
+        ...draft.policy,
+        mode: 'delegated-review',
+        delegation: {
+          actor,
+          decisionRef,
+          gates: [...gates],
+          at: new Date().toISOString(),
+        },
+      }
+    },
+  )
+}
+
+export async function clearDelegation(featureDir, options = {}) {
+  const { expectedVersion, actor, reason = 'scope-changed' } = options
+  if (!actor || !Number.isInteger(expectedVersion)) {
+    throw new StoreError('INVALID_REQUEST', 'actor and expectedVersion are required')
+  }
+  return mutateFeature(
+    featureDir,
+    {
+      expectedVersion,
+      event: {
+        type: 'policy.delegate.clear',
+        actor,
+        data: { reason },
+      },
+    },
+    (draft) => {
+      draft.policy = {
+        ...draft.policy,
+        mode: 'strict',
+        delegation: null,
       }
     },
   )

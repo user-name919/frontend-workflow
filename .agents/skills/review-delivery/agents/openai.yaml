@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review Delivery"
+  short_description: "独立核查交付证据，区分修复、补证和人工决策"
+  default_prompt: "Use $review-delivery to independently review this sealed SDD packet."

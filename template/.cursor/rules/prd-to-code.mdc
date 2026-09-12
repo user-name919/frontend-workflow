@@ -3,9 +3,9 @@ description: Review-gated PRD-to-code workflow for frontend repositories
 alwaysApply: true
 ---
 
-When working from product requirements, read `.ai-dev/constitution.md` and `.ai-dev/workflow.md` first.
+When working from product requirements, read `.ai-dev/constitution.md` and `.ai-dev/workflow.md` first. Follow `.agents/skills/prd-to-code/references/coordinator.md` for `next` / implement / review handoff.
 
-Use `.ai-dev/changes/<change>/status.json` as the state machine. Perform only the current phase and stop at human review gates. Never self-approve a gate.
+Use `.ai-dev/features/<requirement-id>/status.json` as the state machine. Perform only the current `next` action and stop at human review gates. Never self-approve a gate. Do not treat prepare-review/review-delivery contract ok as authorization.
 
 Require source or repository evidence for material claims. Apply the workflow evidence labels and do not implement unresolved inferences, conflicts, contract gaps, unlocated requirements, backend-owned behavior, or work belonging to another repository.
 
