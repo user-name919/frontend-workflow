@@ -85,7 +85,7 @@ node .ai-dev/scripts/record-review.mjs <feature-dir> validate --request request.
 node .ai-dev/scripts/record-review.mjs <feature-dir> accept --request request.json --report report.json
 ```
 
-编排下一步（先 reconcile，不创建 run；无 freshContextDispatch 时 capability=assisted）：
+编排下一步（先 reconcile，不创建 run）。主 Agent 写产物和改代码。任务进入 `review_pending` 后**立刻**派审核子 Agent，不要等用户打字。子 Agent 必须写出审了哪些、通过/未通过/无法确定及原因；通过则给主 Agent 抛 `review.passed` 并 `next`，无法确定必须告诉用户。Cursor `stop` hook 在主 Agent 停下来未派时自动补一句。Node 不能自己 Task/spawn。
 
 ```bash
 node .ai-dev/scripts/workflow-control.mjs <feature-dir> next
@@ -95,9 +95,9 @@ node .ai-dev/scripts/record-task-result.mjs <feature-dir> accept --request accep
 node .ai-dev/scripts/run-verification.mjs <feature-dir> --request verify.json
 ```
 
-阶段审核包用 `prepare-review` 从**已确认需求**生成标准并 `seal`；独立上下文用 `review-delivery` 出报告。两者的 v1 JSON **不能**直接交给 `record-review.mjs`，必须先 `adapt`。校验器 `ok` 不是门禁放行。`scope`/`final` 仍须人工。没有独立宿主时标记 `assisted`，不能改身份字符串假装独立。
+阶段审核包由主 Agent 用 `prepare-review` 从**已确认需求**生成并 `seal`；**审核子 Agent** 用 `review-delivery` 出报告。两者的 v1 JSON **不能**直接交给 `record-review.mjs`，必须先 `adapt`，再 `decide`。任务 `pass` 只放行该任务。`scope`/`final` 仍须人工。主 Agent 不得自审自称独立。
 
-中断恢复：先 `record-task-result inspect`，确认宿主 worker 已停后再 `workflow-control recover`（`confirmWorkerStopped: true`）。不得按超时自动再派一个实现者。
+中断恢复：先 `record-task-result inspect`，确认主 Agent 的写入已停后再 `workflow-control recover`（`confirmWorkerStopped: true`）。没有项目级写入锁。
 
 ## 产物一致性
 
@@ -157,10 +157,10 @@ node .ai-dev/scripts/update-consistency.mjs <feature-dir> resolve <artifact-path
 
 ## 阶段 2：SPEC
 
-1. 在 `artifacts/design/frontend-spec.md` 描述可观察前端行为。
-2. 添加稳定需求 ID、验收标准和失败/空状态。
-3. 除非已批准约束明确要求，否则不写入具体实现选择。
-4. 更新 `artifacts/design/traceability.md`。
+1. 先写 `delivery.json`（验收、任务链接），再渲染 `acceptance.md` / `traceability.md`。这些表是机器台账的阅读视图，不要手改。
+2. 另写 `artifacts/design/frontend-spec.md` 作为给开发人员看的技术方案副产物：目标、需求对照、空/失败/重试。编号只引用 `intake.json` 的 FR-* 和 `delivery.json` 的 AC-*，不要另起一套。
+3. 必须用 fenced Mermaid 画出至少一张 `flowchart`（或 `graph`）主流程，以及一张 `sequenceDiagram` 时序。图中的页面状态、操作和接口必须能在已确认需求或契约里找到；不要从现有实现反推产品规则。适用时再补状态图；不适用写原因。
+4. 除非已批准约束明确要求，否则不写入无必要的实现选择。`render-artifacts.mjs` 不得覆盖本文件。
 5. 将状态转为 `SPEC_REVIEW`，然后停止。
 
 ## 审核点 2A：SPEC_REVIEW
@@ -181,8 +181,8 @@ node .ai-dev/scripts/update-consistency.mjs <feature-dir> resolve <artifact-path
 ## 阶段 4：IMPLEMENTING
 
 1. 确认当前真实项目根目录与 `status.json.project.root` 一致；不创建强制 Worktree。
-2. 在开发人员当前项目中直接检索和修改代码，保留初始化时记录的已有修改。
-3. 每次只执行一个已批准任务，差异限制在任务声明范围内。
+2. 主 Agent 按 `next` 一次只做当前任务（如 T1），在真实项目中改代码。做完后制包，派审核子 Agent。
+3. 子 Agent 只回答「该任务是否达到已确认目标」。`pass` 放行后主 Agent 才做 T2。代码/证据问题回主 Agent；产品权问题直接给人。没有项目级写入锁，也不因多改了文件自动回滚。
 4. 执行任务对应验证并更新任务和追踪关系。
 5. 将本需求涉及的全部文件传给：
 

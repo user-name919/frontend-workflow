@@ -11,6 +11,7 @@
 - Preserve a source pointer for every material requirement.
 - Distinguish written requirements, user confirmations, code evidence, and inference.
 - Escalate conflicts and contract gaps before implementation.
+- `frontend-spec.md` is the developer-facing tech scheme byproduct of intake/delivery. Write mermaid flow and sequence diagrams; do not treat those diagrams as the ID ledger.
 
 ## Changes
 
@@ -31,5 +32,6 @@
 - For a single feature, a human may explicitly authorize `delegated-review` for `spec` and/or `plan` only via `workflow-control.mjs delegate`, with a real `decisionRef`. Independent review pass is recorded under `status.reviews`, and must **not** forge `approvals.*.approvedBy`.
 - The agent must not edit human approval records on behalf of a human.
 - Commit, merge, push, deploy, and external writes require explicit authorization.
-- Protocol validation is not a substitute for a real independent host context. Host dispatch follows `coordinator.md`; without fresh-context tools the run is `assisted`, not autonomous.
+- The main agent writes artifacts and code. A reviewer sub-agent may **release a task** when confirmed acceptance is met (`review-authority.md`). That is not a `scope`/`final` approval and does not forge `approvals.*.approvedBy`.
+- Execution defects and missing gatherable evidence go back to the main agent. Product, ownership, and contract gaps go to a human. Host dispatch follows `coordinator.md`. When Task / sub-agent tools exist, use them for review. `assisted` is only the fallback when a fresh reviewer context cannot be spawned.
 - `prepare-review` / `review-delivery` contract success is not a workflow gate and must be adapted before `record-review`.
