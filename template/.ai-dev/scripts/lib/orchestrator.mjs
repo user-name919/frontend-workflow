@@ -6,6 +6,7 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
+import { capabilitiesFromOverride, resolveCapabilities, toNextCapabilities } from './capabilities.mjs'
 import { reconcileArtifacts } from './consistency.mjs'
 import { gateAuthorized } from './reviews.mjs'
 import { readFeature } from './workspace-store.mjs'
@@ -322,6 +323,13 @@ export function nextAction(input = {}) {
   }
 }
 
+async function readProjectCapabilities(projectRoot) {
+  if (!projectRoot) return { freshContextDispatch: false }
+  const config = await readJsonOrNull(projectRoot, '.ai-dev/host-capabilities.json')
+  if (!config) return { freshContextDispatch: false }
+  return toNextCapabilities(resolveCapabilities(config))
+}
+
 async function readJsonOrNull(featureDir, relative) {
   try {
     return JSON.parse(await readFile(path.join(featureDir, relative), 'utf8'))
@@ -343,12 +351,14 @@ export async function computeNext(featureDir, options = {}) {
   })
   const intake = await readJsonOrNull(resolved, 'artifacts/analysis/intake.json')
   const delivery = await readJsonOrNull(resolved, 'artifacts/design/delivery.json')
+  const capabilities =
+    capabilitiesFromOverride(options.capabilities) || (await readProjectCapabilities(status.project?.root))
   const actionResult = nextAction({
     status,
     intake,
     delivery,
     gates: options.gates,
-    capabilities: options.capabilities || { freshContextDispatch: false },
+    capabilities,
   })
   return {
     ok: true,

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "hostName": "cursor",
+  "features": {
+    "freshContextDispatch": "supported",
+    "requestReview": "supported"
+  },
+  "notes": "Cursor Task/subagents are for independent review. The main agent writes and implements. A reviewer pass releases the current task only."
+}
