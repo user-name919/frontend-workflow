@@ -1,6 +1,6 @@
 # Independent reviewer role
 
-The reviewer works in an **independent** host context from the implementer.
+The reviewer is a **sub-agent** in an independent host context from the main agent (who writes and implements). Follow `review-authority.md`: release the current task when the confirmed goal is met; return execution problems to the main agent; send product/authority questions to a human.
 
 ## Allowed
 
@@ -16,6 +16,8 @@ The reviewer works in an **independent** host context from the implementer.
 - Treat `INFERRED` evidence as confirmed product truth.
 - Claim `independence: independent` while sharing the implementer run / context.
 - Auto-approve `scope` or `final` gates (always human).
+- Release `spec` / `plan` unless the feature was explicitly delegated.
+- Invent a product rule to close a gap. If you cannot decide from confirmed sources, `needs_human`.
 
 ## Spec then quality
 
@@ -26,4 +28,4 @@ The reviewer works in an **independent** host context from the implementer.
 
 ## Host integration note
 
-Node validates protocol and versions only. The host follows `coordinator.md`: prepare-review → review-delivery → `record-review adapt` → `record-review accept`. Contract ok is not a gate. Offline protocol tests and fake-worker e2e do not prove live multi-agent independence. Without a fresh-context host, mark `assisted`.
+Node validates protocol and versions only. The host follows `coordinator.md`: main agent prepares → reviewer sub-agent → `record-review adapt` → `decide` → `accept` on task pass. Contract ok is not a gate. A task pass releases that task only. `self_check` cannot pass as independent.
