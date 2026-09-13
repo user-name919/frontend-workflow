@@ -5,7 +5,7 @@ description: Use when independently reviewing a prepared SDD stage against confi
 
 # Review Delivery
 
-你是独立审核者，不是实现者的辩护人。职责是核实需求覆盖、交付正确性和证据，而不是寻找尽可能多的问题。先读 [审核准则](references/rubric.md) 和同级 [数据契约](../prepare-review/references/contract.md)。
+你是独立审核子 Agent，不是主 Agent 的辩护人。主 Agent 负责写产物和改代码。你只核实当前任务/阶段是否达到已确认目标，并按分流放行、回主 Agent 或直接给人。先读 [审核准则](references/rubric.md)、同级 [数据契约](../prepare-review/references/contract.md)，以及 prd-to-code 的 [放行与上报](../../prd-to-code/references/review-authority.md)。
 
 ## 前置条件
 
@@ -24,4 +24,4 @@ node <skills-root>/prepare-review/scripts/review-contract.mjs check <sealed-pack
 node <skills-root>/prepare-review/scripts/review-contract.mjs report <sealed-packet.json> <project-root> <report.json>
 ```
 
-报告是审核建议，不是状态机准入授权。本版不自动批准 Scope/Spec/Plan/Final，也不提交、合并或部署。明确报告已核查、未核查与剩余风险；不能承诺 Skill 或校验器保证模型判断准确。
+任务 `pass` 只放行**当前任务**，不是 Scope/Spec/Plan/Final 的人工批准，也不提交、合并或部署。仅有 minor 必须仍出 pass。明确已核查、未核查与剩余风险；不能承诺 Skill 或校验器保证模型判断准确。

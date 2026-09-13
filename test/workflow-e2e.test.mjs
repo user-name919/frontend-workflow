@@ -215,13 +215,8 @@ test('protocol simulation: two tasks, spec fail repair, stale report, BLOCKED re
     expectedVersion: (await readFeature(featureDir)).control.version,
     snapshot: snap1,
   })
-  status = await mutateFeature(
-    featureDir,
-    { expectedVersion: status.control.version, event: { type: 'test.repair', actor: 'fake-worker' } },
-    (draft) => {
-      draft.runtime.taskResults.T1.status = 'repairing'
-    },
-  )
+  assert.equal(status.runtime.taskResults.T1.status, 'repairing')
+  assert.equal(status.runtime.taskResults.T1.escalateTo, 'main')
   action = nextAction({ status, delivery: deliveryJson })
   assert.equal(action.type, 'repair')
 
@@ -254,19 +249,13 @@ test('protocol simulation: two tasks, spec fail repair, stale report, BLOCKED re
     includeProjectDigest: true,
   })
   const request1b = { ...request1, requestId: 'RV-T1B', snapshotId: snap1b.id }
-  await acceptReview(featureDir, passReport(request1b), {
+  status = await acceptReview(featureDir, passReport(request1b), {
     request: request1b,
     expectedVersion: (await readFeature(featureDir)).control.version,
     snapshot: snap1b,
   })
-  status = await mutateFeature(
-    featureDir,
-    { expectedVersion: (await readFeature(featureDir)).control.version, event: { type: 'test.passed', actor: 'fake-worker' } },
-    (draft) => {
-      draft.runtime.taskResults.T1.status = 'passed'
-      draft.runtime.taskResults.T1.reviewStatus = 'passed'
-    },
-  )
+  assert.equal(status.runtime.taskResults.T1.status, 'passed')
+  assert.equal(status.runtime.taskResults.T1.escalateTo, 'none')
 
   action = nextAction({ status, delivery: deliveryJson })
   assert.equal(action.type, 'dispatch_implementer')
@@ -309,19 +298,12 @@ test('protocol simulation: two tasks, spec fail repair, stale report, BLOCKED re
     requiredRuleIds: ['SPEC-COVERAGE', 'CODE-QUALITY'],
     implementerRunId: 'IMPL-3',
   }
-  await acceptReview(featureDir, passReport(request2), {
+  status = await acceptReview(featureDir, passReport(request2), {
     request: request2,
     expectedVersion: (await readFeature(featureDir)).control.version,
     snapshot: snap2,
   })
-  status = await mutateFeature(
-    featureDir,
-    { expectedVersion: (await readFeature(featureDir)).control.version, event: { type: 'test.t2', actor: 'fake-worker' } },
-    (draft) => {
-      draft.runtime.taskResults.T2.status = 'passed'
-      draft.runtime.taskResults.T2.reviewStatus = 'passed'
-    },
-  )
+  assert.equal(status.runtime.taskResults.T2.status, 'passed')
   action = nextAction({ status, delivery: deliveryJson })
   assert.equal(action.type, 'verify')
 

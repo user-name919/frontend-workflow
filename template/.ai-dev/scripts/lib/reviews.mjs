@@ -7,6 +7,8 @@ import { createHash } from 'node:crypto'
 import { mkdir, open, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
+import { decideReviewAction } from './review-loop.mjs'
+import { buildReviewSummary, renderReviewSummaryMarkdown } from './review-summary.mjs'
 import { mutateFeature, readFeature, StoreError } from './workspace-store.mjs'
 import { readSnapshot, verifySnapshot } from './snapshots.mjs'
 
@@ -281,6 +283,19 @@ export async function acceptReview(featureDir, report, options = {}) {
   }
 
   const stored = await persistReport(resolved, report)
+  const currentTask = status.runtime?.taskResults?.[report.taskId] || {}
+  const decision = decideReviewAction({
+    report,
+    fixRound: Number.isInteger(request.fixRound) ? request.fixRound : currentTask.fixRound || 0,
+    maxFixRounds: status.policy?.maxFixRounds || 3,
+  })
+  const summary = buildReviewSummary(report, { decision })
+  const summaryDir = path.dirname(path.join(resolved, stored.relative))
+  const summaryJsonRel = path.relative(resolved, path.join(summaryDir, 'summary.json'))
+  const summaryMdRel = path.relative(resolved, path.join(summaryDir, 'summary.md'))
+  await writeFile(path.join(resolved, summaryJsonRel), `${JSON.stringify(summary, null, 2)}\n`)
+  await writeFile(path.join(resolved, summaryMdRel), renderReviewSummaryMarkdown(summary))
+
   if (stored.duplicate) {
     const existing = status.reviews?.[report.gate]
     if (existing?.reportRef === stored.relative) {
@@ -303,6 +318,8 @@ export async function acceptReview(featureDir, report, options = {}) {
           taskId: report.taskId,
           verdict: report.verdict,
           reportRef: stored.relative,
+          summaryRef: summaryMdRel,
+          reviewEvent: summary.event.type,
         },
       },
     },
@@ -319,17 +336,34 @@ export async function acceptReview(featureDir, report, options = {}) {
           independence: report.reviewer.independence,
           acceptedAt: new Date().toISOString(),
           definitionRevision: draft.consistency?.revision ?? 0,
+          summaryRef: summaryMdRel,
+          reviewEvent: summary.event.type,
         },
       }
       if (report.gate === 'task' && report.taskId) {
         draft.runtime = draft.runtime || { activeTaskId: null, attempts: {}, taskResults: {} }
+        const current = draft.runtime.taskResults?.[report.taskId] || {}
+        const nextTask = {
+          ...current,
+          reviewStatus: report.verdict === 'pass' ? 'passed' : report.verdict,
+          lastReviewRef: stored.relative,
+          reviewDecision: decision.action,
+          escalateTo: decision.escalateTo,
+          reviewEvent: summary.event.type,
+          lastSummaryRef: summaryMdRel,
+        }
+        if (decision.action === 'accept' && report.verdict === 'pass') {
+          nextTask.status = 'passed'
+        } else if (decision.action === 'repair' || decision.action === 'collect_evidence') {
+          nextTask.status = 'repairing'
+          if (decision.action === 'repair') nextTask.fixRound = (current.fixRound || 0) + 1
+        } else if (decision.action === 'ask_human') {
+          nextTask.status = 'blocked'
+          nextTask.reasonCode = 'NEEDS_HUMAN'
+        }
         draft.runtime.taskResults = {
           ...(draft.runtime.taskResults || {}),
-          [report.taskId]: {
-            ...(draft.runtime.taskResults?.[report.taskId] || {}),
-            reviewStatus: report.verdict === 'pass' ? 'passed' : report.verdict,
-            lastReviewRef: stored.relative,
-          },
+          [report.taskId]: nextTask,
         }
       }
     },

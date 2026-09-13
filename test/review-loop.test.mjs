@@ -30,18 +30,36 @@ const businessConflict = {
 }
 
 test('decideReviewAction repairs majors until max rounds then asks human', () => {
-  assert.equal(
-    decideReviewAction({ report: majorFailure, fixRound: 0, maxFixRounds: 3 }).action,
-    'repair',
-  )
+  const repair = decideReviewAction({ report: majorFailure, fixRound: 0, maxFixRounds: 3 })
+  assert.equal(repair.action, 'repair')
+  assert.equal(repair.escalateTo, 'main')
   assert.equal(
     decideReviewAction({ report: majorFailure, fixRound: 3, maxFixRounds: 3 }).action,
     'ask_human',
   )
   assert.equal(
-    decideReviewAction({ report: businessConflict, fixRound: 0, maxFixRounds: 3 }).action,
-    'ask_human',
+    decideReviewAction({ report: businessConflict, fixRound: 0, maxFixRounds: 3 }).escalateTo,
+    'human',
   )
+})
+
+test('pass and minors release; missing evidence returns to the main agent', () => {
+  const passed = decideReviewAction({ report: { verdict: 'pass', findings: [] } })
+  assert.equal(passed.action, 'accept')
+  assert.equal(passed.escalateTo, 'none')
+
+  const minors = decideReviewAction({
+    report: {
+      verdict: 'revise',
+      findings: [{ id: 'F-3', severity: 'minor', ruleId: 'CODE-QUALITY', message: 'naming', requiresHuman: false }],
+    },
+  })
+  assert.equal(minors.action, 'accept')
+  assert.equal(minors.escalateTo, 'none')
+
+  const evidence = decideReviewAction({ report: { verdict: 'needs_evidence', findings: [] } })
+  assert.equal(evidence.action, 'collect_evidence')
+  assert.equal(evidence.escalateTo, 'main')
 })
 
 test('summarizeReReview blocks done while majors remain', () => {
