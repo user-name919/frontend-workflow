@@ -127,16 +127,8 @@ test('DONE becomes review_pending; replay is idempotent; late old attempt is rej
   )
 })
 
-test('business-conflict concerns escalate; two features in one project cannot both start', async () => {
+test('business-conflict concerns escalate; extra files do not block accept', async () => {
   const { projectRoot, featureDir } = await makeFeature('REQ-RUN-A')
-  const otherDir = await createFeatureWorkspace(projectRoot, {
-    id: 'REQ-RUN-B',
-    idSource: 'user',
-    title: 'Other',
-  })
-  await writeFile(path.join(otherDir, 'artifacts/analysis/intake.json'), `${JSON.stringify(intake(), null, 2)}\n`)
-  await writeFile(path.join(otherDir, 'artifacts/design/delivery.json'), `${JSON.stringify(delivery(), null, 2)}\n`)
-
   await prepareTask(featureDir, 'T1', { attemptId: 'A1' })
   let status = await readFeature(featureDir)
   await startTask(featureDir, {
@@ -145,23 +137,46 @@ test('business-conflict concerns escalate; two features in one project cannot bo
     hostRunId: 'HOST-A',
     expectedVersion: status.control.version,
   })
+  await writeFile(path.join(projectRoot, 'src/extra.js'), 'export const leftover = true\n')
+  status = await readFeature(featureDir)
+  const accepted = await acceptTaskResult(
+    featureDir,
+    doneReport({ changedFiles: ['src/retry.js', 'src/extra.js'] }),
+    { expectedVersion: status.control.version },
+  )
+  assert.equal(accepted.runStatus, 'review_pending')
+  assert.equal(accepted.reasonCode, null)
+  assert.equal(await readFile(path.join(projectRoot, 'src/extra.js'), 'utf8'), 'export const leftover = true\n')
 
+  const otherDir = await createFeatureWorkspace(projectRoot, {
+    id: 'REQ-RUN-B',
+    idSource: 'user',
+    title: 'Other',
+  })
+  await writeFile(path.join(otherDir, 'artifacts/analysis/intake.json'), `${JSON.stringify(intake(), null, 2)}\n`)
+  await writeFile(path.join(otherDir, 'artifacts/design/delivery.json'), `${JSON.stringify(delivery(), null, 2)}\n`)
   await prepareTask(otherDir, 'T1', { attemptId: 'A1' })
   const other = await readFeature(otherDir)
-  await assert.rejects(
-    () =>
-      startTask(otherDir, {
-        taskId: 'T1',
-        attemptId: 'A1',
-        hostRunId: 'HOST-B',
-        expectedVersion: other.control.version,
-      }),
-    (error) => error.code === 'PROJECT_BUSY',
-  )
+  const second = await startTask(otherDir, {
+    taskId: 'T1',
+    attemptId: 'A1',
+    hostRunId: 'HOST-B',
+    expectedVersion: other.control.version,
+  })
+  assert.equal(second.status.runtime.taskResults.T1.status, 'running')
 
-  status = await readFeature(featureDir)
+  const conflictDir = await makeFeature('REQ-RUN-C')
+  await prepareTask(conflictDir.featureDir, 'T1', { attemptId: 'A1' })
+  status = await readFeature(conflictDir.featureDir)
+  await startTask(conflictDir.featureDir, {
+    taskId: 'T1',
+    attemptId: 'A1',
+    hostRunId: 'HOST-C',
+    expectedVersion: status.control.version,
+  })
+  status = await readFeature(conflictDir.featureDir)
   const conflict = await acceptTaskResult(
-    featureDir,
+    conflictDir.featureDir,
     doneReport({
       status: 'DONE_WITH_CONCERNS',
       concerns: ['接口契约冲突：重试次数产品未决'],
@@ -170,44 +185,6 @@ test('business-conflict concerns escalate; two features in one project cannot bo
   )
   assert.equal(conflict.runStatus, 'blocked')
   assert.equal(conflict.reasonCode, 'BUSINESS_CONFLICT')
-})
-
-test('pre-existing undeclared file with unchanged digest is not a new scope change', async () => {
-  const { projectRoot, featureDir } = await makeFeature('REQ-RUN-2')
-  await writeFile(path.join(projectRoot, 'src/preexisting.js'), 'export const leftover = true\n')
-  await prepareTask(featureDir, 'T1', { attemptId: 'A1' })
-  let status = await readFeature(featureDir)
-  await startTask(featureDir, {
-    taskId: 'T1',
-    attemptId: 'A1',
-    hostRunId: 'HOST-1',
-    expectedVersion: status.control.version,
-  })
-  await writeFile(path.join(projectRoot, 'src/retry.js'), 'export function retry() { return 1 }\n')
-  status = await readFeature(featureDir)
-  const accepted = await acceptTaskResult(featureDir, doneReport(), { expectedVersion: status.control.version })
-  assert.equal(accepted.runStatus, 'review_pending')
-})
-
-test('new change outside allowed files is SCOPE_CHANGED and is not reverted', async () => {
-  const { projectRoot, featureDir } = await makeFeature('REQ-RUN-3')
-  await prepareTask(featureDir, 'T1', { attemptId: 'A1' })
-  let status = await readFeature(featureDir)
-  await startTask(featureDir, {
-    taskId: 'T1',
-    attemptId: 'A1',
-    hostRunId: 'HOST-1',
-    expectedVersion: status.control.version,
-  })
-  await writeFile(path.join(projectRoot, 'src/extra.js'), 'export const leaked = true\n')
-  status = await readFeature(featureDir)
-  await assert.rejects(
-    () => acceptTaskResult(featureDir, doneReport({ changedFiles: ['src/retry.js', 'src/extra.js'] }), { expectedVersion: status.control.version }),
-    (error) => error.code === 'SCOPE_CHANGED',
-  )
-  assert.equal(await readFile(path.join(projectRoot, 'src/extra.js'), 'utf8'), 'export const leaked = true\n')
-  const after = await readFeature(featureDir)
-  assert.equal(after.runtime.taskResults.T1.reasonCode, 'SCOPE_CHANGED')
 })
 
 test('inspect does not replay commands; recover requires worker stopped confirmation', async () => {
@@ -223,7 +200,7 @@ test('inspect does not replay commands; recover requires worker stopped confirma
   const inspected = await inspectInterruptedTask(featureDir)
   assert.equal(inspected.taskId, 'T1')
   assert.equal(inspected.hasResult, false)
-  assert.ok(inspected.pending.some((item) => /reservation/.test(item)))
+  assert.ok(inspected.pending.some((item) => /running without accepted result/.test(item)))
 
   status = await readFeature(featureDir)
   await assert.rejects(

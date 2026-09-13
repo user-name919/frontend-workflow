@@ -1,117 +1,20 @@
 /**
- * Task run lifecycle: exclusive project writer, result accept, interrupted inspect.
- * Does not spawn models. Reservation survives short-lived CLI exits.
+ * Task run lifecycle: start, accept, inspect, recover.
+ * Does not spawn models and does not lock the project against other writers.
  */
 
 import { createHash } from 'node:crypto'
-import { execFile as execFileCallback } from 'node:child_process'
-import { mkdir, open, readFile, unlink, writeFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { promisify } from 'node:util'
 
 import { nextAction } from './orchestrator.mjs'
 import { mutateFeature, readFeature, StoreError } from './workspace-store.mjs'
 
-const execFile = promisify(execFileCallback)
 const RESULT_STATUSES = new Set(['DONE', 'DONE_WITH_CONCERNS', 'NEEDS_CONTEXT', 'BLOCKED'])
 const BUSINESS_CONCERN = /conflict|ownership|契约|合同|产品未决|ambiguity|职责/i
 
 function sha256(buffer) {
   return createHash('sha256').update(buffer).digest('hex')
-}
-
-function reservationPath(projectRoot) {
-  return path.join(projectRoot, '.ai-dev/runtime/active-implementation.json')
-}
-
-async function digestFile(root, relative) {
-  try {
-    const bytes = await readFile(path.join(root, relative))
-    return { exists: true, sha256: sha256(bytes) }
-  } catch {
-    return { exists: false, sha256: null }
-  }
-}
-
-async function listProjectFiles(projectRoot) {
-  try {
-    await execFile('git', ['rev-parse', '--is-inside-work-tree'], { cwd: projectRoot })
-  } catch {
-    return []
-  }
-  const tracked = (
-    await execFile('git', ['ls-files', '-z'], { cwd: projectRoot, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 })
-  ).stdout
-    .split('\0')
-    .filter(Boolean)
-  const untracked = (
-    await execFile('git', ['ls-files', '--others', '--exclude-standard', '-z'], {
-      cwd: projectRoot,
-      encoding: 'utf8',
-      maxBuffer: 10 * 1024 * 1024,
-    })
-  ).stdout
-    .split('\0')
-    .filter(Boolean)
-  return [...new Set([...tracked, ...untracked])].filter((file) => !file.startsWith('.ai-dev/')).sort()
-}
-
-export async function readReservation(projectRoot) {
-  try {
-    return JSON.parse(await readFile(reservationPath(projectRoot), 'utf8'))
-  } catch (error) {
-    if (error.code === 'ENOENT') return null
-    throw error
-  }
-}
-
-/**
- * Project lock first, then feature writes. File stays until accept or confirmed recover.
- */
-export async function acquireProjectLock(projectRoot, reservation) {
-  const file = reservationPath(projectRoot)
-  await mkdir(path.dirname(file), { recursive: true })
-  const payload = `${JSON.stringify({ ...reservation, acquiredAt: new Date().toISOString() }, null, 2)}\n`
-  try {
-    const handle = await open(file, 'wx')
-    try {
-      await handle.writeFile(payload)
-    } finally {
-      await handle.close()
-    }
-    return { created: true, reservation }
-  } catch (error) {
-    if (error.code !== 'EEXIST') throw error
-    const existing = await readReservation(projectRoot)
-    if (
-      existing &&
-      existing.featureId === reservation.featureId &&
-      existing.taskId === reservation.taskId &&
-      existing.attemptId === reservation.attemptId &&
-      existing.hostRunId === reservation.hostRunId
-    ) {
-      return { created: false, reservation: existing, duplicate: true }
-    }
-    throw new StoreError(
-      'PROJECT_BUSY',
-      `Project already has an active implementer (${existing?.featureId}/${existing?.taskId})`,
-    )
-  }
-}
-
-export async function releaseProjectLock(projectRoot, reservation) {
-  const existing = await readReservation(projectRoot)
-  if (!existing) return false
-  if (
-    reservation &&
-    (existing.featureId !== reservation.featureId ||
-      existing.taskId !== reservation.taskId ||
-      existing.attemptId !== reservation.attemptId)
-  ) {
-    throw new StoreError('LOCK_MISMATCH', 'Reservation does not match the active implementation')
-  }
-  await unlink(reservationPath(projectRoot))
-  return true
 }
 
 async function loadAttemptFiles(featureDir, taskId, attemptId) {
@@ -132,35 +35,6 @@ async function loadAttemptFiles(featureDir, taskId, attemptId) {
   return { dir, request, beforeFiles, storedResult }
 }
 
-export async function detectScopeChange(projectRoot, request, beforeFiles) {
-  const allowed = new Set((request.allowedFiles || []).map((file) => file.path))
-  const violations = []
-  const currentFiles = await listProjectFiles(projectRoot)
-  const seen = new Set(currentFiles)
-
-  for (const file of currentFiles) {
-    if (allowed.has(file)) continue
-    const now = await digestFile(projectRoot, file)
-    const before = beforeFiles.others?.[file]
-    if (!before) {
-      violations.push({ path: file, reason: 'new-undeclared-file' })
-      continue
-    }
-    if (before.sha256 !== now.sha256) {
-      violations.push({ path: file, reason: 'undeclared-file-changed' })
-    }
-  }
-
-  for (const [file, before] of Object.entries(beforeFiles.others || {})) {
-    if (allowed.has(file) || seen.has(file)) continue
-    if (before.exists) {
-      violations.push({ path: file, reason: 'undeclared-file-removed' })
-    }
-  }
-
-  return { changed: violations.length > 0, violations }
-}
-
 function mapResultStatus(report) {
   if (report.status === 'DONE' || report.status === 'DONE_WITH_CONCERNS') return 'review_pending'
   if (report.status === 'NEEDS_CONTEXT') return 'needs_context'
@@ -178,6 +52,17 @@ function concernsNeedHuman(report) {
 
 function sameReport(left, right) {
   return sha256(Buffer.from(JSON.stringify(left))) === sha256(Buffer.from(JSON.stringify(right)))
+}
+
+function runningAttempt(status) {
+  const taskId = status.runtime?.activeTaskId
+  const result = taskId ? status.runtime?.taskResults?.[taskId] : null
+  if (!taskId || result?.status !== 'running') return null
+  return {
+    taskId,
+    attemptId: result.attemptId || status.runtime?.attempts?.[taskId]?.current || null,
+    hostRunId: result.hostRunId || null,
+  }
 }
 
 /**
@@ -215,43 +100,41 @@ export async function startTask(featureDir, input = {}) {
     hostRunId,
   }
 
-  const lock = await acquireProjectLock(projectRoot, reservation)
-  try {
-    const next = await mutateFeature(
-      resolved,
-      {
-        expectedVersion,
-        event: {
-          type: 'task.start',
-          actor,
-          data: reservation,
-        },
+  const next = await mutateFeature(
+    resolved,
+    {
+      expectedVersion,
+      event: {
+        type: 'task.start',
+        actor,
+        data: reservation,
       },
-      (draft) => {
-        draft.runtime = draft.runtime || { activeTaskId: null, attempts: {}, taskResults: {} }
-        const attempts = draft.runtime.attempts[taskId] || { count: 0 }
-        const already = draft.runtime.taskResults[taskId]
-        if (already?.status === 'running' && already.attemptId === attemptId && already.hostRunId === hostRunId) {
-          return
-        }
-        draft.runtime.activeTaskId = taskId
-        draft.runtime.attempts[taskId] = {
-          count: Math.max(attempts.count || 0, Number(String(attemptId).replace(/\D/g, '')) || attempts.count || 0),
-          current: attemptId,
-        }
-        draft.runtime.taskResults[taskId] = {
-          ...(already || {}),
-          status: 'running',
-          attemptId,
-          hostRunId,
-        }
-      },
-    )
-    return { status: next, reservation: lock.reservation, duplicate: Boolean(lock.duplicate) }
-  } catch (error) {
-    if (lock.created) await releaseProjectLock(projectRoot, reservation).catch(() => {})
-    throw error
-  }
+    },
+    (draft) => {
+      draft.runtime = draft.runtime || { activeTaskId: null, attempts: {}, taskResults: {} }
+      const attempts = draft.runtime.attempts[taskId] || { count: 0 }
+      const already = draft.runtime.taskResults[taskId]
+      if (already?.status === 'running' && already.attemptId === attemptId && already.hostRunId === hostRunId) {
+        return
+      }
+      draft.runtime.activeTaskId = taskId
+      draft.runtime.attempts[taskId] = {
+        count: Math.max(attempts.count || 0, Number(String(attemptId).replace(/\D/g, '')) || attempts.count || 0),
+        current: attemptId,
+      }
+      draft.runtime.taskResults[taskId] = {
+        ...(already || {}),
+        status: 'running',
+        attemptId,
+        hostRunId,
+      }
+    },
+  )
+  const duplicate =
+    status.runtime?.taskResults?.[taskId]?.status === 'running' &&
+    status.runtime?.taskResults?.[taskId]?.attemptId === attemptId &&
+    status.runtime?.taskResults?.[taskId]?.hostRunId === hostRunId
+  return { status: next, reservation, duplicate }
 }
 
 /**
@@ -283,11 +166,7 @@ export async function acceptTaskResult(featureDir, report, options = {}) {
     )
   }
 
-  const { dir, request, beforeFiles, storedResult } = await loadAttemptFiles(
-    resolved,
-    report.taskId,
-    report.attemptId,
-  )
+  const { dir, storedResult } = await loadAttemptFiles(resolved, report.taskId, report.attemptId)
   const current = status.runtime?.attempts?.[report.taskId]?.current
   if (current && current !== report.attemptId) {
     throw new StoreError('STALE_ATTEMPT', `Attempt ${report.attemptId} is not current (${current})`)
@@ -299,13 +178,9 @@ export async function acceptTaskResult(featureDir, report, options = {}) {
     throw new StoreError('RESULT_CONFLICT', 'A different result is already stored for this attempt')
   }
 
-  const scope = await detectScopeChange(status.project.root, request, beforeFiles)
   let runStatus = mapResultStatus(report)
   let reasonCode = null
-  if (scope.changed) {
-    runStatus = 'blocked'
-    reasonCode = 'SCOPE_CHANGED'
-  } else if (report.status === 'DONE_WITH_CONCERNS' && concernsNeedHuman(report)) {
+  if (report.status === 'DONE_WITH_CONCERNS' && concernsNeedHuman(report)) {
     runStatus = 'blocked'
     reasonCode = 'BUSINESS_CONFLICT'
   }
@@ -346,30 +221,14 @@ export async function acceptTaskResult(featureDir, report, options = {}) {
     },
   )
 
-  await releaseProjectLock(status.project.root, {
-    featureId: status.id,
-    taskId: report.taskId,
-    attemptId: report.attemptId,
-  }).catch(() => {})
-
-  if (reasonCode === 'SCOPE_CHANGED') {
-    const error = new StoreError(
-      'SCOPE_CHANGED',
-      `Non-allowed files changed: ${scope.violations.map((item) => item.path).join(', ')}`,
-    )
-    error.violations = scope.violations
-    error.status = next
-    throw error
-  }
-
   return { status: next, idempotent: false, runStatus, reasonCode }
 }
 
 export async function inspectInterruptedTask(featureDir) {
   const resolved = path.resolve(featureDir)
   const status = await readFeature(resolved)
-  const reservation = status.project?.root ? await readReservation(status.project.root) : null
-  const taskId = reservation?.taskId || status.runtime?.activeTaskId
+  const active = runningAttempt(status)
+  const taskId = active?.taskId || status.runtime?.activeTaskId || null
   if (!taskId) {
     return {
       taskId: null,
@@ -379,29 +238,19 @@ export async function inspectInterruptedTask(featureDir) {
       pending: [],
     }
   }
-  const attemptId = reservation?.attemptId || status.runtime?.attempts?.[taskId]?.current
+  const attemptId = active?.attemptId || status.runtime?.attempts?.[taskId]?.current
   let storedResult = null
-  let beforeFiles = { allowed: {}, others: {} }
-  let request = { allowedFiles: [] }
   if (attemptId) {
     try {
       const loaded = await loadAttemptFiles(resolved, taskId, attemptId)
       storedResult = loaded.storedResult
-      beforeFiles = loaded.beforeFiles
-      request = loaded.request
     } catch {
       // attempt files may be missing after a crash before prepare
     }
   }
 
-  let workspaceChanged = false
   const pending = []
-  if (status.project?.root) {
-    const scope = await detectScopeChange(status.project.root, request, beforeFiles)
-    workspaceChanged = scope.changed
-    if (scope.changed) pending.push(`undeclared changes: ${scope.violations.map((item) => item.path).join(', ')}`)
-  }
-  if (reservation && !storedResult) pending.push('reservation exists without accepted result; confirm worker stopped before recover')
+  if (!storedResult) pending.push('running without accepted result; recover if the implementer sub-agent has stopped')
   if (storedResult && status.runtime?.taskResults?.[taskId]?.status === 'running') {
     pending.push('result file exists; accept it instead of replaying commands')
   }
@@ -409,8 +258,8 @@ export async function inspectInterruptedTask(featureDir) {
   return {
     taskId,
     attemptId,
-    workspaceChanged,
-    reservation,
+    workspaceChanged: false,
+    reservation: active,
     hasResult: Boolean(storedResult),
     nextAction: nextAction({ status }),
     pending,
@@ -425,33 +274,30 @@ export async function recoverReservation(featureDir, options = {}) {
   if (confirmWorkerStopped !== true) {
     throw new StoreError(
       'CONFIRM_WORKER_STOPPED',
-      'Set confirmWorkerStopped=true only after the host worker is known to be stopped',
+      'Set confirmWorkerStopped=true only after the implementer sub-agent is known to be stopped',
     )
   }
 
   const resolved = path.resolve(featureDir)
   const status = await readFeature(resolved)
-  const reservation = status.project?.root ? await readReservation(status.project.root) : null
-  if (!reservation) throw new StoreError('NO_RESERVATION', 'No active implementation reservation')
-  if (reservation.featureId !== status.id) {
-    throw new StoreError('LOCK_MISMATCH', `Reservation belongs to ${reservation.featureId}`)
-  }
+  const active = runningAttempt(status)
+  if (!active) throw new StoreError('NO_ACTIVE_RUN', 'No running implementer to recover')
 
-  const next = await mutateFeature(
+  return mutateFeature(
     resolved,
     {
       expectedVersion,
       event: {
         type: 'task.recover',
         actor,
-        data: { taskId: reservation.taskId, attemptId: reservation.attemptId },
+        data: { taskId: active.taskId, attemptId: active.attemptId },
       },
     },
     (draft) => {
       draft.runtime.activeTaskId = null
-      const current = draft.runtime.taskResults?.[reservation.taskId]
+      const current = draft.runtime.taskResults?.[active.taskId]
       if (current?.status === 'running' && !current.resultRef) {
-        draft.runtime.taskResults[reservation.taskId] = {
+        draft.runtime.taskResults[active.taskId] = {
           ...current,
           status: 'pending',
           recovered: true,
@@ -459,6 +305,4 @@ export async function recoverReservation(featureDir, options = {}) {
       }
     },
   )
-  await releaseProjectLock(status.project.root, reservation)
-  return next
 }
