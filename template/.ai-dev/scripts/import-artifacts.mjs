@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * Import draft flow for legacy Markdown workspaces.
- * Does not invent decision evidence. User must confirm before accept.
+ * 解决什么问题：旧工作区只有手写 Markdown，没有 intake/delivery JSON，后续渲染和门禁接不上。自动从 Markdown 正则“猜”业务事实会伪造决策证据，必须先结构化再等人确认。
+ * 通过什么方式解决：draft 把调用方提供（或空）的 intake/delivery 写成 revisions/import-draft.json 并列出 gaps；accept 在人确认后备份旧 Markdown、写入 JSON、再 render，并作废全部 approvals。
+ * 触发时机：要把遗留 Markdown 工作区迁到 schema 结构化产物、且准备让人复核草稿时。
+ * 被谁控制触发：主 Agent 生成 draft；人确认后才允许 accept。脚本不会从 Markdown 发明结论。
  */
 
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
@@ -44,6 +46,11 @@ async function backupMarkdown(featureDir) {
   return dir
 }
 
+/**
+ * 生成 import-draft.json：只序列化调用方给的（或空的）intake/delivery，并收集校验 gaps。
+ * 不扫描旧 Markdown 填业务字段，避免用正则发明证据。无 sources 会记 EMPTY_SOURCES。
+ * 草稿可以带 gaps 落盘；ok 仅表示当前结构已能通过校验，仍须人确认后才能 accept。
+ */
 export async function createImportDraft(featureDir, options = {}) {
   const resolved = path.resolve(featureDir)
   const status = await readFeature(resolved)
@@ -86,6 +93,11 @@ export async function createImportDraft(featureDir, options = {}) {
   return { draftPath, gaps, ok: gaps.length === 0 }
 }
 
+/**
+ * 在人确认后把草稿写入 intake.json / delivery.json，备份旧 Markdown 并重新渲染派生文件。
+ * 必须带 actor；校验失败分别抛 INVALID_INTAKE / INVALID_DELIVERY，不会部分接受。
+ * 接受后清空全部 approvals，因为结构化导入可能改了范围和任务，旧门禁不再有效。
+ */
 export async function acceptImportDraft(featureDir, draftPath, options = {}) {
   const resolved = path.resolve(featureDir)
   const status = await readFeature(resolved)
@@ -150,6 +162,7 @@ async function main(argv) {
     }
   }
 
+  // draft：可选 --request 提供 intake/delivery；缺省写空结构并标 gaps。
   if (action === 'draft') {
     let intake
     let delivery
@@ -163,6 +176,7 @@ async function main(argv) {
     return
   }
 
+  // accept：必须同时给 --draft 与含 actor/expectedVersion 的 --request，防止无人确认就落盘。
   if (!draftPath) throw new StoreError('INVALID_REQUEST', 'accept requires --draft <path>')
   if (!requestPath) throw new StoreError('INVALID_REQUEST', 'accept requires --request with actor and expectedVersion')
   const request = JSON.parse(await readFile(path.resolve(requestPath), 'utf8'))

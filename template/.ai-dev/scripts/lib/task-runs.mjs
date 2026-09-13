@@ -1,6 +1,8 @@
 /**
- * Task run lifecycle: start, accept, inspect, recover.
- * Does not spawn models and does not lock the project against other writers.
+ * 解决什么问题：任务尝试要能开始、验收、中断恢复，且不锁整个项目、也不因范围变化回滚代码。
+ * 通过什么方式解决：只锁 feature status；结果按 attempt 落盘；无 PROJECT 锁；无 SCOPE_CHANGED 回滚。
+ * 触发时机：派实施、收实施结果、崩溃后 inspect/recover。
+ * 被谁控制触发：任务脚本 / 协调器。不 spawn 模型。
  */
 
 import { createHash } from 'node:crypto'
@@ -66,8 +68,8 @@ function runningAttempt(status) {
 }
 
 /**
- * @param {string} featureDir
- * @param {{taskId:string,attemptId:string,expectedVersion:number,hostRunId:string,actor?:string}} input
+ * 把指定 attempt 标成 running。不锁项目目录，其他写者仍可改业务代码。
+ * 同 attempt+hostRunId 重复 start 视为幂等。BLOCKED 同 attempt 禁止重试。
  */
 export async function startTask(featureDir, input = {}) {
   const resolved = path.resolve(featureDir)
@@ -138,9 +140,8 @@ export async function startTask(featureDir, input = {}) {
 }
 
 /**
- * @param {string} featureDir
- * @param {object} report
- * @param {{expectedVersion:number,actor?:string}} options
+ * 验收实施报告。DONE/DONE_WITH_CONCERNS → review_pending；业务冲突则 blocked。
+ * 同内容幂等，不同内容冲突。不因范围变化回滚工作区（无 SCOPE_CHANGED 回滚）。
  */
 export async function acceptTaskResult(featureDir, report, options = {}) {
   const resolved = path.resolve(featureDir)
@@ -224,6 +225,10 @@ export async function acceptTaskResult(featureDir, report, options = {}) {
   return { status: next, idempotent: false, runStatus, reasonCode }
 }
 
+/**
+ * 查看中断的 running 尝试，给出待办提示。不改状态。
+ * 项目级锁已删除，workspaceChanged 恒为 false。
+ */
 export async function inspectInterruptedTask(featureDir) {
   const resolved = path.resolve(featureDir)
   const status = await readFeature(resolved)
@@ -233,6 +238,7 @@ export async function inspectInterruptedTask(featureDir) {
     return {
       taskId: null,
       attemptId: null,
+      // PROJECT 锁已删除：不再对比工作区指纹，也不因 SCOPE_CHANGED 回滚。
       workspaceChanged: false,
       nextAction: nextAction({ status }),
       pending: [],
@@ -266,6 +272,10 @@ export async function inspectInterruptedTask(featureDir) {
   }
 }
 
+/**
+ * 仅在确认实施子 Agent 已停后，把无结果的 running 放回 pending。
+ * 不回滚文件，也不持有项目锁。
+ */
 export async function recoverReservation(featureDir, options = {}) {
   const { expectedVersion, actor, confirmWorkerStopped } = options
   if (!actor || !Number.isInteger(expectedVersion)) {

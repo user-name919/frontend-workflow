@@ -1,4 +1,12 @@
 #!/usr/bin/env node
+
+/**
+ * 解决什么问题：评测需要可复现的独立 git 仓，不能直接在源 fixture 上跑，也要能核对基线 commit。
+ * 通过什么方式解决：把 eval/fixtures/<case-id> 拷到临时目录，用固定作者/时间 init 并提交，再校验或打印 repositoryBase。
+ * 触发时机：评测准备 case 工作目录，或用 --print-hash-only 回写/核对 case.json 时。
+ * 被谁控制触发：调用方传入 case-id 与目标目录；本脚本不启动模型评测。
+ */
+
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import {
@@ -71,6 +79,9 @@ function runGit(cwd, args) {
   return (result.stdout || '').trim()
 }
 
+// 从 fixture 生成独立临时 git 仓，用稳定作者/时间提交，得到可复现的 repositoryBase。
+// --print-hash-only 只打印与 case.json 的比对结果，不保留最终目录。
+// 正式物化时若 repositoryBase 不一致则失败；成功则拷到目标目录并写 .eval-materialized.json。
 function materialize(caseId, targetDir, printHashOnly) {
   const fixtureDir = path.join(EVAL_ROOT, 'fixtures', caseId)
   const casePath = path.join(EVAL_ROOT, 'cases', caseId, 'case.json')

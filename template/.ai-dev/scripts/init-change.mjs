@@ -1,5 +1,12 @@
 #!/usr/bin/env node
 
+/**
+ * 解决什么问题：每个需求需要独立的 features/<id> 工作区，否则产物和状态会混在一起。缺少 schema v2 的 control / policy / runtime，后续状态机和审核无法记账。若不记录 git 基线与当时脏文件，后期无法区分“需求前已有改动”和“本次引入”。
+ * 通过什么方式解决：从 .ai-dev/templates 复制出 features/<id>，写入 status.json（schemaVersion 2、项目 root/branch/baseCommit/initialChanges），并生成 revisions/code-baseline.json 内容哈希。未给 --id 则按日期+随机后缀生成 REQ-...。
+ * 触发时机：确认要开一个新需求、且尚不存在同名 feature 目录时。
+ * 被谁控制触发：主 Agent 跑本脚本（--title 必填，可选 --id / --id-source）；人也可在终端直接跑。
+ */
+
 import { execFile as execFileCallback } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { access, cp, mkdir, readFile, realpath, writeFile } from 'node:fs/promises'
@@ -69,6 +76,7 @@ function datePart(date) {
 
 function normalizeRequirementId(rawId) {
   const normalized = rawId.trim().toUpperCase()
+  // id 只允许字母数字与 ._-，并转大写，保证目录名与 status.id 可对齐。
   if (!/^[A-Z0-9][A-Z0-9._-]{0,63}$/.test(normalized)) {
     throw new Error('Requirement id must contain only letters, numbers, dots, underscores, or hyphens')
   }
@@ -83,6 +91,11 @@ function parseInitialChanges(output) {
   }))
 }
 
+/**
+ * 在真实 git 仓库根下新建 features/<id>：拷模板、写 schema v2 状态、记下当前分支与 HEAD。
+ * 同时扫描 porcelain 脏/未跟踪文件，写入 initialChanges 与 code-baseline 哈希，供后续 preExisting 对照。
+ * 目录已存在、标题为空或 id-source 非法时立即失败，避免半初始化工作区。
+ */
 export async function createFeatureWorkspace(rawProjectRoot, options) {
   if (!options?.title?.trim()) throw new Error('Requirement title is required')
   const projectRoot = await realpath(await git(path.resolve(rawProjectRoot), 'rev-parse', '--show-toplevel'))
@@ -179,6 +192,7 @@ function parseArgs(args) {
 }
 
 const invokedPath = process.argv[1] && path.resolve(process.argv[1])
+// CLI：解析 --title/--id/--id-source 后在 cwd 建工作区，成功时打印相对路径。
 if (invokedPath === fileURLToPath(import.meta.url)) {
   try {
     const options = parseArgs(process.argv.slice(2))

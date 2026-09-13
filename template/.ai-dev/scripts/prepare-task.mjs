@@ -1,5 +1,12 @@
 #!/usr/bin/env node
 
+/**
+ * 解决什么问题：实现某个任务时，执行方不能带着整份仓库和其它任务的闲聊上手。缺少裁剪过的 brief、允许文件和 before 快照，就会越权改文件或发明产品规则。
+ * 通过什么方式解决：从 intake/delivery 抽出该 task 的需求、验收、spec/plan 摘录和依赖接口，写成 revisions/tasks/<id>/<attempt>/brief.md 与 request.json，并 capture 项目内容哈希到 before-files.json。
+ * 触发时机：计划已批准、即将开始（或重试）某一个 taskId 之前。
+ * 被谁控制触发：主 Agent 在派工或自己动手前跑本脚本；人可加 --attempt / --search。本脚本不改代码、不派 reviewer。
+ */
+
 import { createHash } from 'node:crypto'
 import { execFile as execFileCallback } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
@@ -27,6 +34,7 @@ async function readJson(filePath) {
 
 async function digestFile(root, relative) {
   if (!isNonEmptyString(relative) || path.isAbsolute(relative) || relative.split(path.sep).includes('..')) {
+    // 快照路径必须是项目内相对路径，防止读到仓库外文件。
     throw new StoreError('PATH_ESCAPE', `Illegal path: ${relative}`)
   }
   try {
@@ -124,9 +132,9 @@ function renderBrief({ task, requirements, acceptance, specExcerpts, planExcerpt
 }
 
 /**
- * @param {string} featureDir
- * @param {string} taskId
- * @param {{ attemptId?: string, searchRecords?: object[], actor?: string }} [options]
+ * 为单个 taskId 生成可交给执行方的 brief / request / before 快照，不修改业务代码。
+ * 任务必须已在 delivery.json；attemptId 默认按已有 attempts 递增。searchRecords 缺 query/method 会 INVALID_REQUEST。
+ * 只摘与该任务相关的需求和依赖接口，并写明只许改 allowedFiles、不得派审、不得发明产品决策。
  */
 export async function prepareTask(featureDir, taskId, options = {}) {
   const resolved = path.resolve(featureDir)
@@ -134,11 +142,13 @@ export async function prepareTask(featureDir, taskId, options = {}) {
 
   const status = await readFeature(resolved)
   const projectRoot = status.project?.root
+  // 没有真实项目根就无法做 before 哈希，不能生成可执行 brief。
   if (!isNonEmptyString(projectRoot)) throw new StoreError('MISSING_PROJECT', 'status.project.root is required')
 
   const intake = await readJson(path.join(resolved, 'artifacts/analysis/intake.json'))
   const delivery = await readJson(path.join(resolved, 'artifacts/design/delivery.json'))
   const task = (delivery.tasks || []).find((item) => item.id === taskId)
+  // 未知 taskId 直接失败，避免为计划外工作生成 brief。
   if (!task) throw new StoreError('UNKNOWN_TASK', `Task ${taskId} is not in delivery.json`)
 
   const attemptCount = Number(status.runtime?.attempts?.[taskId]?.count || 0)
@@ -246,6 +256,7 @@ export async function prepareTask(featureDir, taskId, options = {}) {
 
 async function main(argv) {
   const [featureDir, taskId, ...rest] = argv
+  // CLI：一次只准备一个 taskId；--attempt 指定轮次，--search 追加检索记录。
   if (!featureDir || !taskId) {
     throw new StoreError('INVALID_REQUEST', 'Usage: node prepare-task.mjs <feature-dir> <taskId> [--attempt A1]')
   }

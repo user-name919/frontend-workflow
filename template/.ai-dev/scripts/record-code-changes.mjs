@@ -1,5 +1,12 @@
 #!/usr/bin/env node
 
+/**
+ * 解决什么问题：实现完成后需要可审查的改动清单、指向真实文件的链接和可保存的 patch。不能自动 commit / merge / push。路径若逃出项目或走进 .ai-dev，会把工作流账本和业务代码搅在一起。
+ * 通过什么方式解决：对照 status.project.baseCommit 分类 added/modified/deleted，在 coding/ 建软链，写 changed-files.json 与 changes.patch。未声明的脏路径只进 undeclaredChanges 警告，不静默丢弃。mutateFeature 只记 coding.record 事件。
+ * 触发时机：某个已批准任务改完业务代码、准备进入任务结果或验证之前。
+ * 被谁控制触发：主 Agent 按规则跑本脚本并列出文件；人也可补跑。本脚本从不 git commit。
+ */
+
 import { execFile as execFileCallback } from 'node:child_process'
 import { access, lstat, mkdir, readFile, readlink, realpath, symlink, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -30,6 +37,7 @@ function projectPath(projectRoot, rawPath) {
   const normalized = path.normalize(rawPath)
   const absolute = path.resolve(projectRoot, normalized)
   const relative = path.relative(projectRoot, absolute)
+  // 业务改动必须落在仓库内且不能写进 .ai-dev，避免把账本路径当实现文件。
   if (!relative || relative.startsWith('..') || path.isAbsolute(relative) || relative === '.ai-dev' || relative.startsWith(`.ai-dev${path.sep}`)) {
     throw new Error(`${rawPath} must stay inside the project and outside .ai-dev`)
   }
@@ -50,6 +58,7 @@ async function differsFromBase(projectRoot, baseCommit, relative) {
     await execFile('git', ['diff', '--quiet', baseCommit, '--', relative], { cwd: projectRoot })
     return false
   } catch (error) {
+    // git diff --quiet：退出码 1 表示相对基线有差异，不是命令失败。
     if (error.code === 1) return true
     throw error
   }
@@ -60,6 +69,7 @@ async function newFilePatch(projectRoot, relative) {
     await execFile('git', ['diff', '--no-index', '--binary', '--', '/dev/null', relative], { cwd: projectRoot })
     return ''
   } catch (error) {
+    // --no-index 对新文件同样用退出码 1 带回 patch 正文。
     if (error.code === 1) return error.stdout.trimEnd()
     throw error
   }
@@ -93,6 +103,11 @@ async function ensureCodeLink(codingRoot, projectRoot, file) {
   return linkRelative
 }
 
+/**
+ * 把声明过的项目内文件做成清单、软链和相对 baseCommit 的 patch，并写入 coding.record。
+ * 与 base 无差异的路径会被跳过；init 时已脏的路径标 preExisting，便于 final 区分历史改动。
+ * 不创建 git commit。未列入参数但工作区已脏的路径只警告，避免 final 漏收。
+ */
 export async function recordCodeChanges(rawFeatureDir, rawPaths, options = {}) {
   if (!rawPaths?.length) throw new Error('At least one changed file path is required')
   const featureDir = await realpath(path.resolve(rawFeatureDir))
@@ -197,6 +212,7 @@ export async function recordCodeChanges(rawFeatureDir, rawPaths, options = {}) {
 const invokedPath = process.argv[1] && path.resolve(process.argv[1])
 if (invokedPath === fileURLToPath(import.meta.url)) {
   const [, , featureDir, ...files] = process.argv
+  // CLI：必须显式列出要入账的相对路径，防止把整个工作区脏文件默认收进去。
   if (!featureDir || !files.length) {
     console.error('Usage: node .ai-dev/scripts/record-code-changes.mjs <feature-dir> <file...>')
     process.exit(1)

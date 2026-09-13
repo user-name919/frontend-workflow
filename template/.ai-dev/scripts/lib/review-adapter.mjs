@@ -1,6 +1,8 @@
 /**
- * Adapt prepare-review / review-delivery v1 packet+report into the workflow review protocol.
- * Contract ok is never gate authorization.
+ * 解决什么问题：prepare-review / review-delivery 的 v1 包不能直接当 workflow 审核入库。
+ * 通过什么方式解决：先跑 skill 合约校验，再映射成 workflow report，并由 validateReview 二次校验；authorizesGate 恒为 false。
+ * 触发时机：子 Agent 交 v1 包之后、record-review 之前。
+ * 被谁控制触发：adapt / 审核衔接脚本。
  */
 
 import path from 'node:path'
@@ -128,6 +130,11 @@ function dimensionVerdicts(packet, report) {
   return { specVerdict: 'fail', qualityVerdict: 'not_run' }
 }
 
+/**
+ * 把 v1 packet+report 映射成 schemaVersion 1 的 workflow 报告。
+ * independence 非 independent 则记 self_check，后续仍不能当独立 pass。
+ * 本函数只做字段映射，不入库、不授权闸门。
+ */
 export function adaptToWorkflowReport(packet, report, request) {
   const dims = dimensionVerdicts(packet, report)
   return {
@@ -153,6 +160,10 @@ export function adaptToWorkflowReport(packet, report, request) {
   }
 }
 
+/**
+ * 把 v1 verdict 粗映射到 accept/ask_human/collect_evidence/repair，供展示。
+ * 不是闸门授权，也不能代替 record-review。
+ */
 export function workflowActionFromDelivery(verdict) {
   if (verdict === 'pass') return 'accept'
   if (verdict === 'needs_human') return 'ask_human'
@@ -161,8 +172,9 @@ export function workflowActionFromDelivery(verdict) {
 }
 
 /**
- * Validate the skill contract, adapt, and validate the workflow report.
- * authorizesGate is always false here.
+ * 加载 prepare-review 合约，校验 packet/report，再适配并走 validateReview。
+ * contract ok 不是闸门授权；v1 包不能直接进 record-review。
+ * authorizesGate 在此恒为 false。
  */
 export async function adaptDeliveryReview({ packet, report, request, projectRoot }) {
   const api = await loadContract(projectRoot)

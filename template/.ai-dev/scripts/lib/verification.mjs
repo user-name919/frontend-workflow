@@ -1,5 +1,8 @@
 /**
- * Run approved delivery.verify commands with execFile only. Never invent passed.
+ * 解决什么问题：验证命令必须真跑，不能编造 passed。
+ * 通过什么方式解决：只用 execFile(command, args)，禁止 shell 串；按真实 exit/超时/缺宿主写记录。
+ * 触发时机：VERIFYING 或任务 verify 列表。
+ * 被谁控制触发：run-verification 脚本。
  */
 
 import { execFile as execFileCallback } from 'node:child_process'
@@ -33,6 +36,9 @@ function resolveCommand(command, projectRoot) {
   return command
 }
 
+/**
+ * 用已落盘记录渲染 verification.md。没有记录就写 unverified，不写通过。
+ */
 export function renderVerificationMarkdown(records) {
   const rows = records.length
     ? records.map((item) => `| \`${item.command} ${(item.args || []).join(' ')}\` | ${item.status} | exit=${item.exitCode}; ${item.id} |`)
@@ -59,8 +65,8 @@ export function renderVerificationMarkdown(records) {
 }
 
 /**
- * @param {string} featureDir
- * @param {{taskId:string,commandIndex:number,expectedSnapshotId?:string,timeoutMs?:number,actor?:string}} input
+ * 对 delivery.verify[i] 真 execFile。缺命令标 unverified；非零/超时/源码中途变化标 failed。
+ * 禁止把整段 shell 当 command。结果写入 revisions 与账本，并刷新 verification.md。
  */
 export async function runVerification(featureDir, input = {}) {
   const resolved = path.resolve(featureDir)
@@ -88,6 +94,7 @@ export async function runVerification(featureDir, input = {}) {
     }
   }
 
+  // 真 execFile，禁止 shell 串，不编造 passed。
   const command = resolveCommand(spec.command, projectRoot)
   const args = Array.isArray(spec.args) ? spec.args : []
   const cwd = spec.cwd && spec.cwd !== '.' ? path.resolve(projectRoot, spec.cwd) : projectRoot

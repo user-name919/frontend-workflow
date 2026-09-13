@@ -1,5 +1,8 @@
 /**
- * Bounded repair / re-review decisions for independent reviews.
+ * 解决什么问题：独立审核未通过时，要决定修、补证还是问人，且不能无限修。
+ * 通过什么方式解决：按 verdict/findings 映射 action；escalateTo 仅为 none/main/human；修复最多 maxFixRounds（默认 3）。
+ * 触发时机：acceptReview 落库时、生成 summary 时。
+ * 被谁控制触发：reviews / review-summary。
  */
 
 const BUSINESS_RULES = new Set([
@@ -9,8 +12,9 @@ const BUSINESS_RULES = new Set([
 ])
 
 /**
- * @param {{report: object, fixRound: number, maxFixRounds?: number}} input
- * @returns {{action: 'accept'|'repair'|'collect_evidence'|'ask_human', escalateTo: 'none'|'main'|'human', reason: string}}
+ * 把报告收成下一步。escalateTo 只有 none（放行）、main（主 Agent 修/补证）、human（必须问人）。
+ * pass → accept/none；needs_human 或业务冲突 → ask_human/human；缺证 → collect_evidence/main。
+ * blocking/major 且未满轮次 → repair/main；满 maxFixRounds（默认 3）则问人。
  */
 export function decideReviewAction({ report, fixRound = 0, maxFixRounds = 3 }) {
   if (!report || typeof report !== 'object') {
@@ -60,6 +64,7 @@ export function decideReviewAction({ report, fixRound = 0, maxFixRounds = 3 }) {
     }
   }
 
+  // escalateTo 只有 none / main / human；修复最多 3 轮，满额后必须问人。
   if (fixRound >= maxFixRounds) {
     return { action: 'ask_human', escalateTo: 'human', reason: `maxFixRounds ${maxFixRounds} exhausted` }
   }
@@ -71,7 +76,8 @@ export function decideReviewAction({ report, fixRound = 0, maxFixRounds = 3 }) {
 }
 
 /**
- * Merge re-review addressing map; unresolved majors block done.
+ * 对照 addressing 与新发现。未解决的 blocking/major 阻止 canMarkDone。
+ * 只汇总，不改账本。
  */
 export function summarizeReReview({ previousFindings = [], addressing = [], newFindings = [] }) {
   const byId = new Map(previousFindings.map((finding) => [finding.id, finding]))

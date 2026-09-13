@@ -1,12 +1,15 @@
 /**
- * Developer-facing tech scheme (frontend-spec.md) is a byproduct of intake/delivery.
- * Structural checks only: diagrams exist and confirmed IDs are cited.
+ * 解决什么问题：frontend-spec.md 必须让开发看见结构和引用，而不是空模板。
+ * 通过什么方式解决：检查围栏 mermaid 是否含 flowchart/graph 与 sequenceDiagram，且正文引用 included 需求 id。
+ * 触发时机：spec 闸 evaluateGate。
+ * 被谁控制触发：gates。
  */
 
 function err(code, message, extra = {}) {
   return { code, message, ruleId: code, ...extra }
 }
 
+/** 抽出围栏 mermaid 块正文，供图类型检查。 */
 function mermaidBodies(markdown) {
   if (typeof markdown !== 'string') return []
   const bodies = []
@@ -23,8 +26,8 @@ function hasDiagram(bodies, kinds) {
 }
 
 /**
- * @param {string|null} markdown
- * @param {{intake?: object, requirePlaceholdersClean?: boolean}} [options]
+ * 结构检查技术说明。缺图、缺 flowchart/graph、缺 sequenceDiagram、未引用 included FR 都失败。
+ * 不评图对不对，只认围栏 mermaid 与正文是否出现需求 id。
  */
 export function validateTechScheme(markdown, options = {}) {
   const errors = []
@@ -40,6 +43,7 @@ export function validateTechScheme(markdown, options = {}) {
   }
 
   const bodies = mermaidBodies(text)
+  // 至少一张 flowchart 或 graph，外加 sequenceDiagram，并在正文引用 included 需求 id。
   if (!bodies.length) {
     errors.push(err('MISSING_DIAGRAM', 'tech scheme needs fenced mermaid diagrams for developers'))
   }

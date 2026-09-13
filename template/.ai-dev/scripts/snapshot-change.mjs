@@ -1,5 +1,12 @@
 #!/usr/bin/env node
 
+/**
+ * 解决什么问题：过门、准备任务或验收时需要证明“当时读到的内容是什么”。只记路径不够，文件事后会被改。没有校验入口就无法发现快照与现状漂移。
+ * 通过什么方式解决：capture 按 request 对指定空间做内容哈希并落盘快照；verify 按 snapshot-id 重算哈希对比。底层委托 lib/snapshots.mjs，本文件只做 CLI 分发。
+ * 触发时机：过门前固化输入、prepare-task 记 before 快照、或事后核对快照是否仍匹配。
+ * 被谁控制触发：主 Agent 或 prepare-task 等脚本下令 capture；人/主 Agent 可用 verify 复查。
+ */
+
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
@@ -15,6 +22,7 @@ function usage() {
 async function main(argv) {
   const [featureDir, action, ...rest] = argv
   if (!featureDir || !['capture', 'verify'].includes(action)) {
+    // 只接受 capture/verify，其它动词一律 INVALID_REQUEST。
     throw new StoreError('INVALID_REQUEST', usage())
   }
 
@@ -26,6 +34,7 @@ async function main(argv) {
     else throw new StoreError('INVALID_REQUEST', usage())
   }
 
+  // capture：必须带 --request，把 gate/路径/新鲜度写成一份可复核的内容哈希快照。
   if (action === 'capture') {
     if (!requestPath) throw new StoreError('INVALID_REQUEST', 'capture requires --request')
     const request = JSON.parse(await readFile(path.resolve(requestPath), 'utf8'))
@@ -34,6 +43,7 @@ async function main(argv) {
     return
   }
 
+  // verify：按 --snapshot-id 重读并比对哈希，只报告是否仍匹配，不改业务状态。
   if (!snapshotId) throw new StoreError('INVALID_REQUEST', 'verify requires --snapshot-id')
   const snapshot = await readSnapshot(featureDir, snapshotId)
   const result = await verifySnapshot(featureDir, snapshot)

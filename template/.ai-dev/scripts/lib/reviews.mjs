@@ -1,6 +1,8 @@
 /**
- * Independent review protocol: validate and accept review reports.
- * Does not call models. Host independence is recorded, not cryptographically proven.
+ * 解决什么问题：独立审核报告要能入库，但不能把自审当通过，也不能伪造人工批准。
+ * 通过什么方式解决：校验报告字段与独立性；self_check 禁止 pass；接受后只写 reviews.* 与 summary，不写 approvals.*。
+ * 触发时机：record-review / acceptReview。
+ * 被谁控制触发：审核脚本；本模块不调模型。宿主独立性只记录，不密码学证明。
  */
 
 import { createHash } from 'node:crypto'
@@ -35,8 +37,9 @@ function stableHash(value) {
 }
 
 /**
- * @param {object} report
- * @param {{request: object, snapshot?: object}} context
+ * 校验报告与 request/snapshot 对齐，检查项与发现完整。
+ * stage 文档 quality 必须 not_run；task/final 双维 pass 才能总 pass。
+ * self_check 不能当作独立 pass。
  */
 export function validateReview(report, context = {}) {
   const errors = []
@@ -176,6 +179,7 @@ export function validateReview(report, context = {}) {
     errors.push(err('SPEC_PASS_REQUIRED', 'stage document pass requires specVerdict pass'))
   }
 
+  // self_check 只能当对照，不能作为独立通过。
   if (reviewer?.independence === 'self_check' && report.verdict === 'pass') {
     errors.push(err('SELF_CHECK_NOT_INDEPENDENT', 'self_check reports cannot be accepted as independent pass'))
   }
@@ -184,8 +188,8 @@ export function validateReview(report, context = {}) {
 }
 
 /**
- * Whether a gate may proceed via human approval or delegated independent review.
- * Never authorizes scope/final via review alone.
+ * 闸门是否可前进：有人工批准即过。
+ * scope/final 绝不能只靠审核；spec/plan 仅在 delegated-review 且独立 pass 时放行。
  */
 export function gateAuthorized(status, gate, review = null) {
   const human = status?.approvals?.[gate]
@@ -193,6 +197,7 @@ export function gateAuthorized(status, gate, review = null) {
     return true
   }
 
+  // scope/final 必须人工批，审核单独不能授权。
   if (gate === 'scope' || gate === 'final') {
     return false
   }
@@ -247,8 +252,8 @@ async function persistReport(featureDir, report) {
 }
 
 /**
- * Accept a validated review into status.reviews (reference only).
- * Does not forge approvals.*.approvedBy.
+ * 校验后把报告落入 revisions/reviews，并写 summary.json/md。
+ * 快照不新鲜则只留审计不接受。mutate 只写 reviews 引用，不伪造 approvals.*。
  */
 export async function acceptReview(featureDir, report, options = {}) {
   const resolved = path.resolve(featureDir)

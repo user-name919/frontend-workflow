@@ -1,6 +1,8 @@
 /**
- * Phase gate evaluator: structural / reference checks only.
- * Semantic correctness remains human + later independent review.
+ * 解决什么问题：阶段闸门只能做结构/引用检查，不能冒充语义通过。
+ * 通过什么方式解决：按闸核对必填产物、intake/delivery、stale、上游批准快照；spec 额外走 tech-scheme。
+ * 触发时机：转态前、人工批准前、validate-change。
+ * 被谁控制触发：workflow-state / 校验脚本。
  */
 
 import { access, readFile, stat } from 'node:fs/promises'
@@ -86,8 +88,9 @@ function openBlockingQuestions(intake, gate) {
 }
 
 /**
- * @param {string} featureDir
- * @param {'scope'|'spec'|'plan'|'final'} gate
+ * 评估某一闸是否结构上可过。legacy 未导入、闸相关 stale、缺文件都会失败。
+ * spec 调 validateTechScheme 做图与 FR 引用检查；final 只认已落盘的执行证据，不编造成绩。
+ * 语义对错仍留给人与后续独立审核。
  */
 export async function evaluateGate(featureDir, gate) {
   const resolved = path.resolve(featureDir)
@@ -228,6 +231,7 @@ export async function evaluateGate(featureDir, gate) {
 
     const specText = await readText(resolved, 'artifacts/design/frontend-spec.md')
     if (gate === 'spec') {
+      // spec 闸走 tech-scheme：flowchart/graph + sequenceDiagram，并引用 included FR。
       const scheme = validateTechScheme(specText, {
         intake: intakeBundle.__error ? undefined : intakeBundle,
       })

@@ -1,6 +1,8 @@
 /**
- * Human-readable review outcome for the current task.
- * Three states only: pass / fail / needs_human.
+ * 解决什么问题：主 Agent / 人只需要三项可读结论，而不是整份报告。
+ * 通过什么方式解决：从 report+decision 收成 pass / fail / needs_human，并带 event（passed / returned / needs_human）。
+ * 触发时机：acceptReview 写 summary 时。
+ * 被谁控制触发：reviews。
  */
 
 import { decideReviewAction } from './review-loop.mjs'
@@ -45,8 +47,9 @@ function nextEvent(outcome, report, decision) {
 }
 
 /**
- * @param {object} report
- * @param {{decision?: object}} [options]
+ * 生成三项结论（通过 / 未通过 / 无法确定）与下一步事件。
+ * needs_human 必须带 humanReasons，主 Agent 不得代决。
+ * 缺 decision 时会现算 decideReviewAction。
  */
 export function buildReviewSummary(report, options = {}) {
   const decision = options.decision || decideReviewAction({ report })
@@ -84,6 +87,9 @@ export function buildReviewSummary(report, options = {}) {
   }
 }
 
+/**
+ * 把 summary 打成给人看的 Markdown：审了哪些、结论、未通过或需人确认的原因。
+ */
 export function renderReviewSummaryMarkdown(summary) {
   const lines = [
     '# 审核结果',

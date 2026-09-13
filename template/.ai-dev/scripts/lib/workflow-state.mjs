@@ -1,6 +1,8 @@
 /**
- * Deterministic workflow transitions, block/resume, and human approvals.
- * P01 checks structure and approval records only — not semantic quality gates.
+ * 解决什么问题：feature 状态只能沿合法边前进，批准和委派必须可审计。
+ * 通过什么方式解决：相邻前进转态、闸门结构检查、人工 approve 绑快照；委派仅允许 spec/plan。
+ * 触发时机：transition / block / resume / approve / delegate。
+ * 被谁控制触发：workflow-control 与协调脚本；不评判业务语义。
  */
 
 import { mutateFeature, readFeature, StoreError } from './workspace-store.mjs'
@@ -91,7 +93,9 @@ function approvalErrors(status, gates) {
 }
 
 /**
- * Evaluate whether transitioning to `to` is legal given current status.
+ * 判断 from→to 是否合法。只允许主链相邻前进；BLOCKED 只能走 resume；COMPLETE 为终态。
+ * 离开闸门态必须已有该闸批准，进入目标态还要备齐前置批准，且不能有 stale。
+ * 只看结构与批准记录，不评语义质量。
  */
 export function evaluateTransition(status, to) {
   const errors = []
@@ -169,6 +173,10 @@ async function assertGate(featureDir, gate) {
   return result
 }
 
+/**
+ * 合法转态：先对 expectedVersion 与 evaluateTransition 把关，再 reconcile、validate、过必要闸门。
+ * 最后 mutate 改 state。这不是批准本身，也不会跳过相邻边。
+ */
 export async function transitionFeature(featureDir, to, options = {}) {
   const { expectedVersion, actor, decisionRef = null } = options
   if (!Number.isInteger(expectedVersion) || !actor) {
@@ -229,6 +237,10 @@ export async function transitionFeature(featureDir, to, options = {}) {
   )
 }
 
+/**
+ * 把当前阶段记入 suspendedFrom 后进入 BLOCKED。COMPLETE 不能拦。
+ * 恢复时必须回到记下的原阶段，不在这里猜。
+ */
 export async function blockFeature(featureDir, options = {}) {
   const { reasonCode, requiredInput, actor, expectedVersion } = options
   if (!reasonCode || !requiredInput || !actor || !Number.isInteger(expectedVersion)) {
@@ -268,6 +280,10 @@ export async function blockFeature(featureDir, options = {}) {
   )
 }
 
+/**
+ * 只从 BLOCKED 回到 suspendedFrom。缺原阶段则要求人工指定，不猜。
+ * 进入该阶段所需批准仍缺、或还有 stale，则拒绝恢复。
+ */
 export async function resumeFeature(featureDir, options = {}) {
   const { actor, expectedVersion } = options
   if (!actor || !Number.isInteger(expectedVersion)) {
@@ -331,6 +347,10 @@ export async function resumeFeature(featureDir, options = {}) {
   )
 }
 
+/**
+ * 人工闸门批准。只能批当前闸，或状态已越过该闸但批准已被失效的情况。
+ * 先过结构闸门再绑新鲜快照，写入 approvals.*；独立审核不能代写这一笔。
+ */
 export async function recordHumanApproval(featureDir, options = {}) {
   const { gate, actor, decisionRef, expectedVersion } = options
   if (!GATES.has(gate)) {
@@ -394,7 +414,8 @@ export async function recordHumanApproval(featureDir, options = {}) {
 const DELEGATABLE = new Set(['spec', 'plan'])
 
 /**
- * Explicit per-feature authorization for delegated independent review of spec/plan only.
+ * 显式授权本 feature 的独立审核。gates 只能是 spec/plan。
+ * scope/final 不能委派，必须人工批。写入 policy.mode=delegated-review。
  */
 export async function recordDelegation(featureDir, options = {}) {
   const { expectedVersion, actor, decisionRef, gates } = options
@@ -405,6 +426,7 @@ export async function recordDelegation(featureDir, options = {}) {
     throw new StoreError('INVALID_REQUEST', 'gates must be a non-empty array')
   }
   for (const gate of gates) {
+    // scope/final 不能委派，只能人工批。
     if (!DELEGATABLE.has(gate)) {
       throw new StoreError('INVALID_DELEGATION', `Cannot delegate ${gate}; only spec|plan allowed`)
     }
@@ -436,6 +458,9 @@ export async function recordDelegation(featureDir, options = {}) {
   )
 }
 
+/**
+ * 清掉委派，回到 strict。范围变化后应收回审核权，避免旧授权继续放行。
+ */
 export async function clearDelegation(featureDir, options = {}) {
   const { expectedVersion, actor, reason = 'scope-changed' } = options
   if (!actor || !Number.isInteger(expectedVersion)) {

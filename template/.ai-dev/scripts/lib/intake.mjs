@@ -1,6 +1,8 @@
 /**
- * Structured intake: sources, evidence, requirements, questions.
- * Structural validation only — does not judge business semantics.
+ * 解决什么问题：分析阶段需要一份可校验、可渲染的结构化 intake，而不是自由文本。
+ * 通过什么方式解决：校验 sources/evidence/requirements/questions 的引用与枚举，再单向生成 Markdown 视图。
+ * 触发时机：写入或渲染 intake、闸门读 intake.json。
+ * 被谁控制触发：分析脚本与 gates；不判断业务对错。
  */
 
 export const SOURCE_KINDS = new Set(['prd', 'api', 'prototype', 'meeting', 'user', 'code'])
@@ -55,8 +57,9 @@ function uniqueIds(items, field, errors, prefix) {
 }
 
 /**
- * @param {unknown} value
- * @returns {{ok: boolean, errors: Array<{code:string,message:string,ruleId:string}>}}
+ * 结构校验 intake：schema、唯一 id、引用完整性与枚举。
+ * included 需求不能只靠非确认证据，也不能只挂全部不可用源。
+ * blocking 问题必须声明 blocksGates。不评业务语义。
  */
 export function validateIntake(value) {
   const errors = []
@@ -225,8 +228,8 @@ function generatedHeader(kind) {
 }
 
 /**
- * Unidirectional Markdown views from intake JSON.
- * @returns {{[relativePath: string]: string}}
+ * 校验通过后单向生成 source-index / evidence / open-questions。
+ * 带 generated 头，禁止当手写源。校验失败则拒绝覆盖视图。
  */
 export function renderIntake(value) {
   const validation = validateIntake(value)
@@ -293,6 +296,7 @@ export function renderIntake(value) {
   }
 }
 
+/** 空的 v1 intake 骨架，供新建 feature。 */
 export function emptyIntake() {
   return {
     schemaVersion: 1,

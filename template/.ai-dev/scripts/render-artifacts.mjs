@@ -1,5 +1,12 @@
 #!/usr/bin/env node
 
+/**
+ * 解决什么问题：intake.json / delivery.json 是结构化源，Markdown 是给人看的投影。手改 Markdown 会和 JSON 分叉。渲染必须原子写入，且不能覆盖人手维护的 frontend-spec.md。
+ * 通过什么方式解决：校验 intake（必选）和 delivery（若存在），调用 renderIntake / renderDelivery 生成分析与验收/任务/追溯 Markdown，经临时目录 rename 一次性落盘。不写 frontend-spec.md 或 implementation-plan.md。
+ * 触发时机：结构化 JSON 更新后、import accept 之后，需要刷新派生 Markdown 时。
+ * 被谁控制触发：主 Agent 在改完 JSON 后跑；import-artifacts accept 会间接调用本脚本的导出函数。
+ */
+
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
@@ -36,6 +43,11 @@ async function writeAllOrNothing(featureDir, files) {
   }
 }
 
+/**
+ * 把 intake/delivery JSON 投影成派生 Markdown，全程先写 staging 再 rename，失败不留半成品。
+ * delivery.json 缺失只渲染 intake 侧；校验失败分别抛 INVALID_INTAKE / INVALID_DELIVERY。
+ * 任务结果仅用于追溯表展示，不会回头改 JSON，也不会碰 frontend-spec.md。
+ */
 export async function renderFeatureArtifacts(featureDir, options = {}) {
   const resolved = path.resolve(featureDir)
   const intake = JSON.parse(await readFile(path.join(resolved, 'artifacts/analysis/intake.json'), 'utf8'))
@@ -80,6 +92,7 @@ export async function renderFeatureArtifacts(featureDir, options = {}) {
 }
 
 const invokedPath = process.argv[1] && path.resolve(process.argv[1])
+// CLI：对单个 feature-dir 全量渲染，成功打印 written 列表，失败带错误码退出。
 if (invokedPath === fileURLToPath(import.meta.url)) {
   const featureDir = process.argv[2]
   if (!featureDir) {

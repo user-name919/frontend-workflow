@@ -1,9 +1,20 @@
+/**
+ * 解决什么问题：共享 skills 和项目 template 需要可重复装到 ~/.agents/skills 或业务仓库。目标已存在且内容不同时，默认覆盖会毁掉用户改过的文件；目录或软链也不能当普通文件覆盖。
+ * 通过什么方式解决：install 把包内 .agents/skills 拷到用户家目录；setup 把 template 与 skills 一并拷进项目。classifyPlan 区分 copied / skipped / conflicts / blocked。无 --force 遇内容冲突抛 ConflictError 且不写盘；--force 先备份到 .frontend-work-flow-backups/<时间戳> 再覆盖。doctor 只体检不写盘。
+ * 触发时机：首次安装 skills、把工作流落到某个前端项目、或检查本机 Node 与打包资源是否完整时。
+ * 被谁控制触发：人通过 bin/frontend-work-flow.mjs（npx/CLI）下令；测试或其它脚本也可注入 packageRoot / homeDir 后直接调 runCli。
+ */
+
 import { constants } from 'node:fs'
 import { access, copyFile, lstat, mkdir, readdir, readFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+/**
+ * 目标已是非普通文件，或内容与源不同且未加 --force 时抛出。
+ * 抛出即表示本次未写盘；bin 入口会据此提示用户复查或改用 --force。
+ */
 export class ConflictError extends Error {
   constructor(paths) {
     super(`Existing files differ:\n${paths.map(file => `- ${file}`).join('\n')}`)
@@ -84,6 +95,7 @@ async function classifyPlan(plan) {
     }
 
     const destinationStat = await lstat(item.destination)
+    // 目录/软链等非普通文件单独记为 blocked，--force 也不能当文件覆盖。
     if (!destinationStat.isFile()) {
       result.blocked.push(item)
       continue
@@ -105,6 +117,7 @@ async function applyPlan(plan, { force, backupRoot }) {
   if (classified.blocked.length) {
     throw new ConflictError(classified.blocked.map(item => item.reportPath))
   }
+  // 内容冲突必须显式 --force；否则整次安装失败，避免只覆盖一部分。
   if (classified.conflicts.length && !force) {
     throw new ConflictError(classified.conflicts.map(item => item.reportPath))
   }
@@ -157,6 +170,11 @@ GitHub usage:
   npx --yes github:bi554lecex/frontend-work-flow setup .`
 }
 
+/**
+ * CLI 总入口：解析 install / setup / doctor / help，组装拷贝计划并套用冲突策略。
+ * options 可注入 packageRoot、homeDir、stdout、now，供测试替身，不影响命令语义。
+ * 未知命令抛错并附帮助文本；doctor 的返回值带 ok，供 bin 映射退出码。
+ */
 export async function runCli(argv, options = {}) {
   const moduleDir = path.dirname(fileURLToPath(import.meta.url))
   const packageRoot = options.packageRoot || path.resolve(moduleDir, '..')
@@ -165,11 +183,13 @@ export async function runCli(argv, options = {}) {
   const now = options.now || (() => new Date())
   const { command, target, force } = parseArgs(argv)
 
+  // help：只打印用法，不访问磁盘、不改任何目标。
   if (command === 'help' || command === '--help' || command === '-h') {
     stdout(helpText())
     return { copied: [], skipped: [], backups: [] }
   }
 
+  // doctor：检查 Node、打包 skills 目录和 template，只报告不写盘。
   if (command === 'doctor') {
     const skillsRoot = path.join(packageRoot, '.agents/skills')
     const projectAssets = path.join(packageRoot, 'template')
@@ -185,12 +205,14 @@ export async function runCli(argv, options = {}) {
   let plan
   let reportRoot
 
+  // install：把包内 skills 装到 ~/.agents/skills，供本机 Codex/Cursor 共用。
   if (command === 'install') {
     const sourceRoot = path.join(packageRoot, '.agents/skills')
     const destinationRoot = path.join(homeDir, '.agents/skills')
     reportRoot = homeDir
     if (!await exists(sourceRoot)) throw new Error(`Packaged assets not found: ${sourceRoot}`)
     plan = await buildPlan(sourceRoot, destinationRoot, reportRoot)
+  // setup：把 template 落到项目根，并把 skills 拷进项目 .agents/skills。
   } else if (command === 'setup') {
     const templateRoot = path.join(packageRoot, 'template')
     const skillRoot = path.join(packageRoot, '.agents/skills')
@@ -206,6 +228,7 @@ export async function runCli(argv, options = {}) {
       )
     ]
   } else {
+    // 未识别命令直接失败并附帮助，避免误当成 install/setup 写盘。
     throw new Error(`Unknown command: ${command}\n\n${helpText()}`)
   }
 

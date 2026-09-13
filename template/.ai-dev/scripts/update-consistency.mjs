@@ -1,5 +1,12 @@
 #!/usr/bin/env node
 
+/**
+ * 解决什么问题：改了一份上游产物后，下游 Markdown/JSON 会过期，但 status.state 不能因此回退。缺少“谁过期了”的账本，过门会读到旧投影。
+ * 通过什么方式解决：mark 按 artifact-graph 把下游标 stale、作废相关 approvals，并唯一创建 revisions/revision-NNNN.json。resolve 只清除实际已刷新的路径。两者都经 mutateFeature 记事件。
+ * 触发时机：编辑已有工作流产物之前 mark；刷新完下游之后 resolve。不得用它来改 state 机。
+ * 被谁控制触发：主 Agent 在改产物前后下令；人也可在终端对单个路径 mark/resolve。
+ */
+
 import { mkdir, readFile, writeFile, open } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
@@ -37,8 +44,9 @@ function consistency(status) {
 }
 
 /**
- * Mark an artifact changed and propagate stale downstream.
- * Reads control.version at entry when expectedVersion is omitted.
+ * 把某产物标为已改：自身移出 stale，所有下游加入 stale，并按图作废相关 approvals。
+ * 未传 expectedVersion 时读取入口处的 control.version，写入用 wx 保证 revision 文件不覆盖。
+ * VERSION_CONFLICT 原样抛出，提示并发 mark，调用方应重读后再试。
  */
 export async function markArtifactChanged(rawChangeDir, artifact, options = {}) {
   const changeDir = path.resolve(rawChangeDir)
@@ -89,6 +97,7 @@ export async function markArtifactChanged(rawChangeDir, artifact, options = {}) 
     }
   } catch (error) {
     if (error.code === 'EEXIST') {
+      // wx 撞车说明 revision 号已被占用，不能覆盖既有审计文件。
       throw new Error(`Revision file already exists: ${revisionFile}`)
     }
     throw error
@@ -127,6 +136,11 @@ export async function markArtifactChanged(rawChangeDir, artifact, options = {}) 
   }
 }
 
+/**
+ * 声明若干下游已按新内容刷新，从 consistency.staleArtifacts 里去掉这些路径。
+ * 只 resolve 当前确实 stale 的项；未 mark 过的路径不会凭空清掉。
+ * 没有 lastChange.revisionFile 说明尚未 mark，直接失败以免假解决。
+ */
 export async function resolveArtifacts(rawChangeDir, artifacts, options = {}) {
   if (!artifacts.length) throw new Error('At least one refreshed artifact is required')
   const changeDir = path.resolve(rawChangeDir)
@@ -179,12 +193,14 @@ export async function resolveArtifacts(rawChangeDir, artifacts, options = {}) {
 const invokedPath = process.argv[1] && path.resolve(process.argv[1])
 if (invokedPath === fileURLToPath(import.meta.url)) {
   const [, , rawChangeDir, action, ...artifacts] = process.argv
+  // CLI：mark <artifact> 或 resolve <artifact...>，缺参直接失败，避免空操作改账本。
   if (!rawChangeDir || !['mark', 'resolve'].includes(action) || !artifacts.length) {
     console.error('Usage: node .ai-dev/scripts/update-consistency.mjs <change-dir> <mark|resolve> <artifact...>')
     process.exit(1)
   }
 
   try {
+    // mark 只取第一个路径；resolve 接受多个已刷新产物。
     const status = action === 'mark'
       ? await markArtifactChanged(rawChangeDir, artifacts[0])
       : await resolveArtifacts(rawChangeDir, artifacts)

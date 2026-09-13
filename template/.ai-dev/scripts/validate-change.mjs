@@ -1,5 +1,12 @@
 #!/usr/bin/env node
 
+/**
+ * 解决什么问题：过门或交付前需要确认 feature 目录结构、status 字段和审批是否齐全。只看“文件在不在”不够，但本脚本也不判断需求语义对不对，避免把结构检查当成产品正确。
+ * 通过什么方式解决：检查必填文件/目录、state、id 与目录名、consistency、schema v2 的 control/policy，以及按状态要求的 approvals。可选 --gate 再跑 evaluateGate。ok 只表示结构（和可选 gate）通过。
+ * 触发时机：呈现 scope / spec / plan / final 门之前，或主 Agent 自检工作区是否可继续时。
+ * 被谁控制触发：主 Agent 按工作流规则跑；人可在终端加 --json / --gate 复查。
+ */
+
 import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
@@ -49,10 +56,9 @@ const approvalRequirements = {
 }
 
 /**
- * Structural feature validation.
- * @param {string} featureDir
- * @param {{ status?: object, gate?: string }} [options]
- * @returns {Promise<{ok: boolean, errors: string[], gate?: object}>}
+ * 结构校验：必填产物、status 形状、过期产物和按状态要求的审批。
+ * 可选 gate 会再跑 evaluateGate，但 ok 仍不等于语义正确或实现正确。
+ * 已有 staleArtifacts 即失败，必须先 update-consistency resolve 再过门。
  */
 export async function validateFeature(featureDir, options = {}) {
   const resolved = path.resolve(featureDir)
@@ -103,9 +109,11 @@ export async function validateFeature(featureDir, options = {}) {
   if (!Array.isArray(status.consistency?.staleArtifacts)) {
     errors.push('status.json: consistency.staleArtifacts must be an array')
   } else if (status.consistency.staleArtifacts.length) {
+    // 有过期产物时结构校验失败，防止拿旧 Markdown 过门。
     errors.push(`status.json: stale artifacts: ${status.consistency.staleArtifacts.join(', ')}`)
   }
 
+  // schema v2 才强制 control.version 与 policy.mode；旧文档需先 migrate。
   if (status.schemaVersion === 2) {
     if (!Number.isInteger(status.control?.version) || status.control.version < 0) {
       errors.push('status.json: control.version must be a non-negative integer')
@@ -113,6 +121,7 @@ export async function validateFeature(featureDir, options = {}) {
     if (!status.policy?.mode) errors.push('status.json: policy.mode is required')
   }
 
+  // 高状态要求对应审批已落盘；缺 approvedBy/approvedAt 不能当已过门。
   for (const gate of approvalRequirements[status.state] || []) {
     const approval = status.approvals?.[gate]
     if (!approval?.approvedBy || !approval?.approvedAt) {
@@ -151,6 +160,7 @@ function parseCliArgs(argv) {
 
 async function main(argv) {
   const { featureDir: rawFeatureDir, gate, json } = parseCliArgs(argv)
+  // CLI：缺 feature-dir 直接退出；--gate 把结构检查和门禁绑在一次运行里。
   if (!rawFeatureDir) {
     console.error('Usage: node .ai-dev/scripts/validate-change.mjs <feature-dir> [--gate scope|spec|plan|final] [--json]')
     process.exit(1)
@@ -158,6 +168,7 @@ async function main(argv) {
 
   const featureDir = path.resolve(rawFeatureDir)
   const result = await validateFeature(featureDir, { gate })
+  // --json 给编排脚本机读；默认文本给人或主 Agent 快速扫错误列表。
   if (json) {
     if (!result.ok) {
       console.log(JSON.stringify({ ok: false, errors: result.errors, gate: result.gate }, null, 2))

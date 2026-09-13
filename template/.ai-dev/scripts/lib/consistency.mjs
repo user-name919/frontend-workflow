@@ -1,5 +1,8 @@
 /**
- * Digest-aware consistency helpers: blocking stale by gate, reconcile without mark.
+ * 解决什么问题：产物改了却没 mark 时，下游 freshness 和批准会悄悄过期。
+ * 通过什么方式解决：对跟踪文件算 SHA-256 digest；reconcile 对比已记录值，传播 stale 并作废受影响批准。
+ * 触发时机：转态、批准、next 等读账本前。
+ * 被谁控制触发：workflow-state / orchestrator / 一致性脚本。
  */
 
 import { createHash } from 'node:crypto'
@@ -12,6 +15,10 @@ function sha256(buffer) {
   return createHash('sha256').update(buffer).digest('hex')
 }
 
+/**
+ * 从 feature/项目候选路径找 artifact-graph.json，供下游传播与作废批准计算。
+ * 找不到则抛 MISSING_GRAPH。
+ */
 export async function readGraph(featureDir) {
   const resolved = path.resolve(featureDir)
   const candidates = [
@@ -36,6 +43,7 @@ export async function readGraph(featureDir) {
   throw new StoreError('MISSING_GRAPH', `artifact-graph.json not found for ${resolved}`)
 }
 
+/** 从图上收集某产物的全部传递下游，供 stale 传播。 */
 function downstreamArtifacts(graph, artifact) {
   if (!graph[artifact]) return new Set()
   const result = new Set()
@@ -51,8 +59,8 @@ function downstreamArtifacts(graph, artifact) {
 }
 
 /**
- * Only stale artifacts that intersect required inputs (or their transitive upstream
- * already represented in requiredInputs) block the gate.
+ * 只有与本闸 requiredInputs 相交的 stale 才挡闸。
+ * 图上的其他陈旧产物不单独拦当前闸。
  */
 export function blockingStale(status, requiredInputs, graph) {
   const stale = status.consistency?.staleArtifacts || []
@@ -89,8 +97,9 @@ const TRACKED_ARTIFACTS = [
 ]
 
 /**
- * Detect content changes that bypassed mark, propagate stale, invalidate approvals.
- * Idempotent when digests already match recorded artifactDigests.
+ * 对比磁盘 digest 与已记录值。未走 mark 的改动也会进 changed。
+ * 首次只 seed；有改动则升 revision、标下游 stale、清空对应 approvals。
+ * digest 已一致时幂等，不无意义升版本。
  */
 export async function reconcileArtifacts(featureDir, options = {}) {
   const resolved = path.resolve(featureDir)
@@ -113,8 +122,7 @@ export async function reconcileArtifacts(featureDir, options = {}) {
     }
     const previous = currentDigests[artifact]
     if (!previous) {
-      // First observation: record without treating template presence as a change event
-      // unless it was previously generated and now differs.
+      // 首次见到只登记，不当成一次变更；未 mark 的后续改动仍会被下面的 digest 对比发现。
       continue
     }
     if (previous.generated && digest.generated && previous.sha256 !== digest.sha256) {
@@ -228,6 +236,10 @@ export async function reconcileArtifacts(featureDir, options = {}) {
   )
 }
 
+/**
+ * 显式登记某产物当前 digest（通常配合 mark）。
+ * 只更新该文件的哈希，不在这里传播 stale。
+ */
 export async function recordArtifactDigest(featureDir, artifact, options = {}) {
   const resolved = path.resolve(featureDir)
   const status = await readFeature(resolved)

@@ -1,5 +1,8 @@
 /**
- * Immutable review-input snapshots (SHA-256 of bytes, never mtime).
+ * 解决什么问题：审核/批准必须钉住当时输入字节，不能靠 mtime。
+ * 通过什么方式解决：对输入文件和可选项目 digest 算 SHA-256，落不可变 snap-*.json；校验时 live 必须一致，baseline 只作对照。
+ * 触发时机：批准、建审核包、验收审核、跑验证。
+ * 被谁控制触发：workflow-state / review-package / reviews / verification。
  */
 
 import { createHash, randomBytes } from 'node:crypto'
@@ -92,8 +95,8 @@ async function git(cwd, ...args) {
 }
 
 /**
- * Digest of HEAD + tracked dirty binary diffs + untracked (non-ignored) file hashes.
- * Excludes .ai-dev/. Does not embed file contents in the returned digest payload.
+ * 项目侧 digest：HEAD + tracked/staged binary diff + 非忽略未跟踪文件哈希。
+ * 排除 .ai-dev，不把文件原文嵌进返回值。非 git 仓库返回 null。
  */
 export async function computeProjectDigest(projectRoot) {
   if (!projectRoot) return null
@@ -140,6 +143,10 @@ export async function computeProjectDigest(projectRoot) {
   }
 }
 
+/**
+ * 按闸列出默认 feature 输入。plan 上的项目源文件标 baseline，实现后改代码不因此判旧。
+ * 其余默认 live，必须与当前字节一致。
+ */
 export function defaultInputsForGate(gate, options = {}) {
   const required = GATE_INPUTS[gate] || []
   const inputs = required.map((pathName) => ({
@@ -169,8 +176,8 @@ export function defaultInputsForGate(gate, options = {}) {
 }
 
 /**
- * @param {string} featureDir
- * @param {{gate:string,taskId?:string|null,inputs:Array,includeProjectDigest?:boolean}} options
+ * 按输入抓字节 SHA-256，wx 写入 revisions/snapshots，同 id 不覆盖。
+ * final、带 taskId、或含 live 项目输入时强制 projectDigest，算不出则失败。
  */
 export async function captureSnapshot(featureDir, options = {}) {
   const resolved = path.resolve(featureDir)
@@ -252,6 +259,9 @@ export async function captureSnapshot(featureDir, options = {}) {
   return snapshot
 }
 
+/**
+ * 按 id 读已落盘快照。拒绝路径逃逸；找不到则 MISSING_SNAPSHOT。
+ */
 export async function readSnapshot(featureDir, snapshotId) {
   const resolved = path.resolve(featureDir)
   if (!snapshotId || snapshotId.includes('..') || path.isAbsolute(snapshotId)) {
@@ -266,9 +276,9 @@ export async function readSnapshot(featureDir, snapshotId) {
 }
 
 /**
- * Verify snapshot freshness.
- * live inputs must match; baseline inputs are informational and do not fail freshness
- * when project files change after plan approval.
+ * 核对快照是否仍新鲜。live 输入必须与当前字节一致。
+ * baseline 只作对照，plan 批准后改代码不因此失败。
+ * final/task 或含 live 项目输入时还要比对 projectDigest。
  */
 export async function verifySnapshot(featureDir, snapshot) {
   const resolved = path.resolve(featureDir)
@@ -277,6 +287,7 @@ export async function verifySnapshot(featureDir, snapshot) {
   const changes = []
 
   for (const input of snapshot.inputs || []) {
+    // live 必须与当前字节一致；baseline 只作对照，实现后改代码不因此失败。
     if (input.freshness === 'baseline') continue
     const current = await resolveInputPath(resolved, projectRoot, input)
     if (current.exists !== input.exists || current.sha256 !== input.sha256) {
@@ -311,6 +322,7 @@ export async function verifySnapshot(featureDir, snapshot) {
   return { fresh: changes.length === 0, changes }
 }
 
+/** CLI 入口，行为同 captureSnapshot。 */
 export async function captureSnapshotCli(featureDir, request) {
   return captureSnapshot(featureDir, request)
 }

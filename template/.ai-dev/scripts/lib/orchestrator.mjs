@@ -1,6 +1,8 @@
 /**
- * Pure next-action decision for the host coordinator.
- * Does not call models, spawn workers, or mutate state.
+ * 解决什么问题：协调器需要知道「现在该做什么」，但不能在 next 里生成或转态。
+ * 通过什么方式解决：读 status/产物/能力，纯函数算出下一步动作；computeNext 可先 reconcile，仍不调模型。
+ * 触发时机：host 问 next。
+ * 被谁控制触发：协调脚本 / workflow next。
  */
 
 import { readFile } from 'node:fs/promises'
@@ -226,13 +228,8 @@ function implementingAction(status, delivery, capabilities, gates) {
 }
 
 /**
- * @param {{
- *   status: object,
- *   intake?: object,
- *   delivery?: object,
- *   gates?: object,
- *   capabilities?: { freshContextDispatch?: boolean, requestReview?: boolean }
- * }} input
+ * 按 state 纯计算下一步。不写盘、不 spawn、不调模型。
+ * scope/final 有审核也仍要人；IMPLEMENTING 按任务运行态派发，修未完不派后续任务。
  */
 export function nextAction(input = {}) {
   const { status, delivery, gates = {}, capabilities = {} } = input
@@ -339,8 +336,8 @@ async function readJsonOrNull(featureDir, relative) {
 }
 
 /**
- * Reconcile first (may register newly observed artifact bytes), then compute next.
- * This is not a state transition and does not create task runs.
+ * 先 reconcile（可能登记新观察到的字节），再 nextAction。
+ * 这不是转态，也不创建 task run，更不调模型。
  */
 export async function computeNext(featureDir, options = {}) {
   const resolved = path.resolve(featureDir)

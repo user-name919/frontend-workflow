@@ -1,4 +1,12 @@
 #!/usr/bin/env node
+
+/**
+ * 解决什么问题：独立审核需要一份可复核的 v1 材料包与报告，避免口头交接或把结构合格当成门禁通过。
+ * 通过什么方式解决：提供 seal / check / report：校验字段与引用、给材料盖指纹、对照仓库验过期、核对报告完整性与 verdict。
+ * 触发时机：prepare-review 制包后 seal/check；review-delivery 审完后 report。
+ * 被谁控制触发：Skill 或 CLI 显式传入 action 与路径；ok 只表示契约校验通过，不等于工作流门禁已放行。
+ */
+
 import { readFile, realpath, stat } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
@@ -37,6 +45,8 @@ function materialRefs(refs, materials, errors, nonempty = true) {
     if (!materials.some(m => m.id === id)) error(errors, 'UNKNOWN_MATERIAL', String(id))
   }
 }
+// 对外校验 packet 结构：schema、阶段、材料路径、需求覆盖与问题引用。
+// 只保证包能被独立复核，不表示需求抽对或允许进入下一阶段。
 export function validatePacket(p) {
   const errors = []
   if (!object(p)) return [{code:'INVALID_PACKET',message:'Expected packet object'}]
@@ -101,6 +111,9 @@ async function fingerprints(p, root) {
   const { snapshot, ...content } = p
   return {root:resolvedRoot,files,digest:hash(JSON.stringify({root:resolvedRoot,content,files}))}
 }
+// seal 在结构通过后计算材料 sha256 与整体 digest，把 snapshot 写回包。
+// check/verify 对照当前项目根重算指纹；report 再核独立性、检查项覆盖和 verdict。
+// CLI 的 ok 只表示这套校验没有错误，不授权 next / 改状态机。
 export async function sealPacket(p, root) {
   const errors=validatePacket(p)
   if(errors.length) throw new Error(JSON.stringify(errors))
@@ -171,6 +184,8 @@ export async function validateReport(p,r,root) {
   return errors
 }
 
+// 直接当脚本跑时：seal 打印封装后的包；check 只验 packet；report 再验报告。
+// 有错误则打印 {ok,errors} 并设 exitCode=1。ok 不是业务批准。
 if(process.argv[1] && path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   try {
     const [action,packetFile,root,reportFile]=process.argv.slice(2)

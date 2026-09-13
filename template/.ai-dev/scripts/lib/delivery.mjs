@@ -1,5 +1,8 @@
 /**
- * Structured delivery: acceptance, tasks, and traceability links.
+ * 解决什么问题：交付物（验收、任务、追溯）必须结构完整且路径不逃出项目。
+ * 通过什么方式解决：按 phase 校验覆盖与依赖环，异步核文件路径；再渲染 Markdown 视图。
+ * 触发时机：写 delivery.json、闸门、渲染验收/任务/追溯。
+ * 被谁控制触发：设计脚本与 gates。
  */
 
 import path from 'node:path'
@@ -122,9 +125,9 @@ async function assertPathInsideProject(projectRoot, relativePath, operation, err
 }
 
 /**
- * @param {object} intake
- * @param {object} delivery
- * @param {{phase?: string, projectRoot?: string, checkPaths?: boolean}} [options]
+ * 同步结构校验 delivery。验收/任务必须挂 included 需求，禁止环依赖。
+ * spec 起要求验收覆盖；plan/final 还要任务覆盖与 links 对齐。
+ * 不碰文件系统；路径沙箱留给 validateDeliveryAsync。
  */
 export function validateDelivery(intake, delivery, options = {}) {
   const errors = []
@@ -279,6 +282,10 @@ export function validateDelivery(intake, delivery, options = {}) {
   return { ok: errors.length === 0, errors }
 }
 
+/**
+ * 在同步校验上按需做路径沙箱：必须相对路径、不得逃出项目、不得写 .ai-dev。
+ * create 沿父目录查 symlink；modify/delete 要求目标已存在且仍在项目内。
+ */
 export async function validateDeliveryAsync(intake, delivery, options = {}) {
   const base = validateDelivery(intake, delivery, options)
   const errors = [...base.errors]
@@ -305,9 +312,8 @@ function generatedHeader(kind) {
 }
 
 /**
- * @param {object} intake
- * @param {object} delivery
- * @param {object} [taskResults] from status.runtime.taskResults
+ * 校验通过后单向生成 acceptance / tasks / traceability。
+ * 默认拒绝半成品覆盖视图。任务状态来自 runtime.taskResults。
  */
 export function renderDelivery(intake, delivery, taskResults = {}) {
   const validation = validateDelivery(intake, delivery, { phase: 'plan', checkPaths: false })
@@ -380,6 +386,7 @@ export function renderDelivery(intake, delivery, taskResults = {}) {
   }
 }
 
+/** 空的 v1 delivery 骨架，供新建 feature。 */
 export function emptyDelivery() {
   return {
     schemaVersion: 1,

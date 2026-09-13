@@ -1,6 +1,8 @@
 /**
- * Review packages: frozen manifests for human/independent review.
- * Softlinks are not accepted as audited code evidence.
+ * 解决什么问题：给人/独立审核一份冻结清单，并让批准绑在新鲜快照上。
+ * 通过什么方式解决：先 captureSnapshot，再写 package manifest（含 before/after digest）；批准必须带仍新鲜的 snapshotId。
+ * 触发时机：准备审核包、闸门核对上游批准。
+ * 被谁控制触发：准备审核脚本与 gates。软链不是审计证据。
  */
 
 import { createHash, randomBytes } from 'node:crypto'
@@ -15,15 +17,9 @@ function sha256(buffer) {
 }
 
 /**
- * @param {string} featureDir
- * @param {{
- *   gate: string,
- *   taskId?: string|null,
- *   inputs?: Array,
- *   beforeFiles?: Record<string, string|Buffer|null>,
- *   afterFiles?: Record<string, string|Buffer|null>,
- *   requirementPatchPath?: string|null,
- * }} options
+ * 抓快照后写 revisions/review-packages/<id>/manifest.json，把清单与 snapshotId 绑在一起。
+ * 软链不是审计证据，只记 before/after 字节 digest。
+ * final 或带 taskId 时快照含 projectDigest。
  */
 export async function createReviewPackage(featureDir, options = {}) {
   const resolved = path.resolve(featureDir)
@@ -81,6 +77,10 @@ export async function createReviewPackage(featureDir, options = {}) {
   }
 }
 
+/**
+ * 批准必须带 snapshotId，且该快照相对当前输入仍 fresh。
+ * 缺 id 或已过期都要求按当前输入重批。
+ */
 export async function assertSnapshotBoundApproval(featureDir, approval, gate) {
   if (!approval) {
     return { ok: false, code: 'MISSING_APPROVAL', message: `${gate} approval missing` }

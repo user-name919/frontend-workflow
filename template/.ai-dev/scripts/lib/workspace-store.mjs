@@ -1,12 +1,15 @@
 /**
- * Versioned feature status store with exclusive lock and atomic rename.
- * Runtime does not call models.
+ * 解决什么问题：feature 的 status.json 需要并发安全地读写，旧 v1 账本也要能升级，但不能偷偷伪造批准。
+ * 通过什么方式解决：独占 status.lock + 临时文件 rename 原子写；mutate 必须带 expectedVersion；v1→v2 只补骨架，不写 approvals。
+ * 触发时机：读 status、显式 migrate、以及任何要改账本的 mutate。
+ * 被谁控制触发：workflow-control / 各阶段脚本；运行时不调模型。
  */
 
 import { randomBytes } from 'node:crypto'
 import { open, readFile, rename, unlink, writeFile, mkdir } from 'node:fs/promises'
 import path from 'node:path'
 
+/** 带 code 的存储错误，供调用方按错误码分支，不改变 Error 语义。 */
 export class StoreError extends Error {
   constructor(code, message) {
     super(message)
@@ -83,8 +86,9 @@ function assertV2Shape(status) {
 }
 
 /**
- * Pure migration from legacy (missing/1) to schemaVersion 2.
- * Preserves id/title/project/consistency/approvals and unknown business fields.
+ * 纯函数把缺 schema 或 v1 的 status 升到 v2。保留 id/title/project/consistency/approvals 等业务字段。
+ * 只补默认 control/policy/runtime，不伪造任何批准。BLOCKED 且缺 suspendedFrom 时不猜原阶段。
+ * artifactStatus 标成 NEEDS_STRUCTURED_IMPORT，避免把旧仓当成已完成结构化导入。
  */
 export function migrateStatus(raw) {
   if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) {
@@ -137,6 +141,7 @@ export function migrateStatus(raw) {
     next.control.blocked = blocked
   }
 
+  // v1→v2 只补账本骨架，不伪造 approvals，也不把 BLOCKED 猜回某阶段。
   next.control.artifactStatus = 'NEEDS_STRUCTURED_IMPORT'
 
   return next
@@ -157,6 +162,10 @@ async function readRawStatus(featureDir) {
   }
 }
 
+/**
+ * 只读已经是 v2 的账本。v1 或缺失 schema 抛 NEEDS_MIGRATION，禁止在热路径上偷偷升级。
+ * 读到非法 shape 直接失败，不回写。
+ */
 export async function readFeature(featureDir) {
   const { value } = await readRawStatus(featureDir)
   const version = value.schemaVersion
@@ -218,6 +227,10 @@ async function withLock(featureDir, fn) {
   }
 }
 
+/**
+ * 持锁把磁盘上的 v1 升到 v2。先把原文备份到 revisions/migration-v1-status.json，已有备份则不覆盖。
+ * 已是 v2 则校验后原样返回。升级本身不补批准记录。
+ */
 export async function migrateFeature(featureDir) {
   return withLock(featureDir, async () => {
     const { text, value } = await readRawStatus(featureDir)
@@ -252,9 +265,9 @@ export async function migrateFeature(featureDir) {
 }
 
 /**
- * @param {string} featureDir
- * @param {{ expectedVersion: number, event: { type: string, actor: string, data?: object } }} options
- * @param {(status: object) => void | object} mutate
+ * 唯一合法写口：expectedVersion 必须等于磁盘 version，否则 VERSION_CONFLICT。
+ * 持锁读→回调改 draft→version+1 并追加 event→临时文件 rename 原子写回。
+ * 回调必须保住 control；本函数不调模型。
  */
 export async function mutateFeature(featureDir, options, mutate) {
   if (!options || !Number.isInteger(options.expectedVersion)) {
@@ -305,6 +318,7 @@ export async function mutateFeature(featureDir, options, mutate) {
   })
 }
 
+/** 新建 feature 时的 v2 骨架。不预填任何批准或审核记录。 */
 export function createV2StatusFields() {
   return {
     schemaVersion: 2,
