@@ -17,6 +17,7 @@ Required rule IDs are listed on each review request. Reports must include a chec
 | SPEC-OBSERVABLE | Behaviors are observable, not implementation trivia |
 | SPEC-BOUNDARIES | Failure / empty / loading boundaries are covered |
 | SPEC-ACCEPTANCE | Included requirements have acceptance scenarios |
+| SPEC-DIAGRAMS | Developer tech scheme has mermaid flowchart and sequence that match cited IDs |
 
 ## Plan (`gate=plan`)
 

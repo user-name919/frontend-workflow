@@ -12,6 +12,7 @@ import { readFeature } from './workspace-store.mjs'
 import { blockingStale, readGraph } from './consistency.mjs'
 import { gateAuthorized } from './reviews.mjs'
 import { assertSnapshotBoundApproval } from './review-package.mjs'
+import { validateTechScheme } from './tech-scheme.mjs'
 
 function err(code, message, extra = {}) {
   return { code, message, ruleId: code, ...extra }
@@ -226,8 +227,11 @@ export async function evaluateGate(featureDir, gate) {
     }
 
     const specText = await readText(resolved, 'artifacts/design/frontend-spec.md')
-    if (gate === 'spec' && looksLikePlaceholder(specText)) {
-      errors.push(err('PLACEHOLDER_SPEC', 'frontend-spec.md still contains placeholder content'))
+    if (gate === 'spec') {
+      const scheme = validateTechScheme(specText, {
+        intake: intakeBundle.__error ? undefined : intakeBundle,
+      })
+      if (!scheme.ok) errors.push(...scheme.errors)
     }
   }
 

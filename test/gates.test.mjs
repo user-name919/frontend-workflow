@@ -71,6 +71,26 @@ function validIntake() {
   }
 }
 
+function validTechScheme(ids = ['FR-1']) {
+  return [
+    '# 技术方案',
+    '',
+    ...ids.map((id) => `### ${id}\n失败后展示重试。`),
+    '',
+    '```mermaid',
+    'flowchart TD',
+    '  fail[失败] --> retry[重试]',
+    '```',
+    '',
+    '```mermaid',
+    'sequenceDiagram',
+    '  User->>Page: 点击重试',
+    '  Page->>API: 再请求',
+    '```',
+    '',
+  ].join('\n')
+}
+
 function validDelivery() {
   return {
     schemaVersion: 1,
@@ -154,7 +174,7 @@ test('spec and plan gates require delivery coverage; final needs execution evide
   const { featureDir, projectRoot } = await makeProjectFeature()
   await writeFile(path.join(featureDir, 'artifacts/analysis/intake.json'), `${JSON.stringify(validIntake(), null, 2)}\n`)
   await writeFile(path.join(featureDir, 'artifacts/analysis/scope.md'), '# Scope\n\nFrontend retry.\n')
-  await writeFile(path.join(featureDir, 'artifacts/design/frontend-spec.md'), '# Spec\n\nRetry button on failure.\n')
+  await writeFile(path.join(featureDir, 'artifacts/design/frontend-spec.md'), validTechScheme())
   await writeFile(path.join(featureDir, 'artifacts/design/implementation-plan.md'), '# Plan\n\nModify request helper.\n')
 
   // spec without acceptance coverage
@@ -166,6 +186,13 @@ test('spec and plan gates require delivery coverage; final needs execution evide
   assert.ok(specNeg.errors.some((e) => e.code === 'REQUIREMENT_UNCOVERED'))
 
   await writeFile(path.join(featureDir, 'artifacts/design/delivery.json'), `${JSON.stringify(validDelivery(), null, 2)}\n`)
+  await writeFile(path.join(featureDir, 'artifacts/design/frontend-spec.md'), '# Spec\n\nFR-1 retry without diagrams.\n')
+  const specNoDiagram = await evaluateGate(featureDir, 'spec')
+  assert.equal(specNoDiagram.ok, false)
+  assert.ok(specNoDiagram.errors.some((e) => e.code === 'MISSING_FLOWCHART'))
+  assert.ok(specNoDiagram.errors.some((e) => e.code === 'MISSING_SEQUENCE'))
+
+  await writeFile(path.join(featureDir, 'artifacts/design/frontend-spec.md'), validTechScheme())
   const specOk = await evaluateGate(featureDir, 'spec')
   assert.equal(specOk.ok, true)
 
