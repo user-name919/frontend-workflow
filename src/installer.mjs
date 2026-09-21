@@ -166,8 +166,8 @@ Options:
   --force  Back up and replace different destination files
 
 GitHub usage:
-  npx --yes github:bi554lecex/frontend-work-flow install
-  npx --yes github:bi554lecex/frontend-work-flow setup .`
+  npx --yes github:user-name919/frontend-workflow install
+  npx --yes github:user-name919/frontend-workflow setup .`
 }
 
 /**
