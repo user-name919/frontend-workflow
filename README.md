@@ -4,6 +4,8 @@
 
 工作流不预设 Vue、React、Node 或包管理器版本。Agent 从目标仓库的说明文件、依赖清单、锁文件、脚本和源码中判断真实技术环境。
 
+外组前端专家若不熟悉本仓库文件：请先读 [docs/README.md](docs/README.md)（换编辑器、零件怎么串、能不能看见独立审核、25 问）。下面是安装和开工说明。
+
 ## 一键配置
 
 前置条件：Node.js 18 或更高版本、Git，电脑能够访问 GitHub。
@@ -11,13 +13,13 @@
 安装团队全部 Skills：
 
 ```bash
-npx --yes github:bi554lecex/frontend-work-flow install
+npx --yes github:user-name919/frontend-workflow install
 ```
 
 进入真实前端项目后配置工作流：
 
 ```bash
-npx --yes github:bi554lecex/frontend-work-flow setup .
+npx --yes github:user-name919/frontend-workflow setup .
 ```
 
 项目中会新增：
@@ -139,7 +141,7 @@ AI 不会替人批准审核点，也不会自动 commit、push、创建 PR、mer
 检查安装包和其中全部 Skills：
 
 ```bash
-npx --yes github:bi554lecex/frontend-work-flow doctor
+npx --yes github:user-name919/frontend-workflow doctor
 ```
 
 验证需求结构、批准信息和一致性状态：
@@ -205,15 +207,15 @@ node .ai-dev/scripts/workflow-control.mjs .ai-dev/features/<requirement-id> appr
 内容相同时，重复执行安装命令会安全跳过。内容不同时，默认停止并列出冲突文件。确认升级时：
 
 ```bash
-npx --yes github:bi554lecex/frontend-work-flow install --force
-npx --yes github:bi554lecex/frontend-work-flow setup . --force
+npx --yes github:user-name919/frontend-workflow install --force
+npx --yes github:user-name919/frontend-workflow setup . --force
 ```
 
 `--force` 会先将被替换文件保存到 `.frontend-work-flow-backups/<时间>/`。团队稳定使用时建议锁定真实发布标签：
 
 ```bash
-npx --yes github:bi554lecex/frontend-work-flow#vX.Y.Z install
-npx --yes github:bi554lecex/frontend-work-flow#vX.Y.Z setup .
+npx --yes github:user-name919/frontend-workflow#vX.Y.Z install
+npx --yes github:user-name919/frontend-workflow#vX.Y.Z setup .
 ```
 
 ## 输入和安全边界
