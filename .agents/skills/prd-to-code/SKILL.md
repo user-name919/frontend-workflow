@@ -37,6 +37,7 @@ Find the repository root, then read `.ai-dev/workflow.md` and `.ai-dev/constitut
 ## Input handling
 
 - Prefer Markdown source documents.
+- If a Markdown source embeds `data:image/...;base64` (or is huge because of it): run `node .ai-dev/scripts/normalize-markdown-assets.mjs --input <raw.md> --out-dir .ai-dev/inbox/<slug>` (or `--feature-dir <feature> --source-slug <slug>`) first. Analyze only the produced `clean.md` and read `assets/*` on demand. Do not fully Read the original file that still contains base64. Point `intake` source locators at `clean.md`, not the raw file.
 - For Word or PDF inputs, extract them with the available document/PDF capability and preserve headings, tables, image references, and source locations.
 - Detect and redact credentials or access tokens before copying source text into change artifacts.
 - Treat screenshots and prototypes as supporting evidence, not as permission to invent unspecified behavior.

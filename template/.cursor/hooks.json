@@ -19,6 +19,11 @@
         "matcher": "sdd-reviewer",
         "loop_limit": 1
       }
+    ],
+    "beforeReadFile": [
+      {
+        "command": "node .cursor/hooks/normalize-md-guard.mjs"
+      }
     ]
   }
 }
