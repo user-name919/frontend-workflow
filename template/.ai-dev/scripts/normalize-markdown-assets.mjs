@@ -2,7 +2,7 @@
 
 /**
  * 解决什么问题：含 data:image base64 的 Markdown 不能整份进 Agent 上下文。
- * 通过什么方式解决：调用 markdown-assets.normalizeMarkdownAssets，写出 clean.md + assets + manifest。
+ * 通过什么方式解决：调用 markdown-assets.normalizeMarkdownAssets，写出 `<原名>-clean.md` + assets + manifest。
  * 触发时机：读 PRD / 来源 MD 之前。
  * 被谁控制触发：主 Agent（Skill 要求）或人手工执行。
  */

@@ -59,9 +59,13 @@ if (!filePath || !/\.md$/i.test(filePath)) {
   process.exit(0)
 }
 
-// Already-normalized clean.md under .ai-dev is always readable.
+// Already-normalized `*-clean.md` under .ai-dev inbox/sources is always readable.
 const normalized = filePath.replace(/\\/g, '/')
-if (normalized.includes('/.ai-dev/') && /\/(inbox|sources)\//.test(normalized) && /\/clean\.md$/i.test(normalized)) {
+if (
+  normalized.includes('/.ai-dev/') &&
+  /\/(inbox|sources)\//.test(normalized) &&
+  /\/[^/]+-clean\.md$/i.test(normalized)
+) {
   process.stdout.write(`${JSON.stringify({ permission: 'allow' })}\n`)
   process.exit(0)
 }
@@ -76,9 +80,9 @@ const projectRoot = projectRootFrom(input)
 const outDir = suggestOutDir(projectRoot, filePath)
 const message = [
   `Blocked reading Markdown with embedded base64 images (or oversized file): ${filePath}`,
-  'Normalize first, then read clean.md only:',
+  'Normalize first, then read the produced `<原名>-clean.md` only:',
   `node .ai-dev/scripts/normalize-markdown-assets.mjs --input ${JSON.stringify(filePath)} --out-dir ${JSON.stringify(outDir)}`,
-  `Then analyze ${path.join(outDir, 'clean.md')} and assets/ on demand. Do not fully re-read the original.`,
+  `Then analyze the *-clean.md under ${outDir} and assets/ on demand. Do not fully re-read the original.`,
 ].join('\n')
 
 process.stdout.write(

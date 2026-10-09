@@ -5,6 +5,7 @@ import path from 'node:path'
 import test from 'node:test'
 
 import {
+  cleanMarkdownFileName,
   fileNeedsNormalize,
   hasEmbeddedBase64Images,
   normalizeMarkdownAssets,
@@ -18,6 +19,12 @@ const TINY_PNG_B64 =
 async function tmpRoot() {
   return mkdtemp(path.join(os.tmpdir(), 'md-assets-'))
 }
+
+test('cleanMarkdownFileName appends -clean before extension', () => {
+  assert.equal(cleanMarkdownFileName('/tmp/考点地图.md'), '考点地图-clean.md')
+  assert.equal(cleanMarkdownFileName('/tmp/foo-clean.md'), 'foo-clean.md')
+  assert.equal(cleanMarkdownFileName('/tmp/a b.md'), 'a b-clean.md')
+})
 
 test('hasEmbeddedBase64Images detects data-image marks', () => {
   assert.equal(hasEmbeddedBase64Images('no images here'), false)
@@ -41,8 +48,9 @@ test('normalize extracts images and rewrites relative paths', async () => {
   assert.equal(result.ok, true)
   assert.equal(result.skipped, false)
   assert.equal(result.imageCount, 1)
+  assert.equal(result.cleanFileName, 'raw-clean.md')
 
-  const clean = await readFile(path.join(outDir, 'clean.md'), 'utf8')
+  const clean = await readFile(path.join(outDir, 'raw-clean.md'), 'utf8')
   assert.match(clean, /!\[diagram\]\(\.\/assets\/image_001\.png\)/)
   assert.doesNotMatch(clean, /data:image/)
   assert.equal(clean.includes('Hello'), true)
@@ -52,11 +60,12 @@ test('normalize extracts images and rewrites relative paths', async () => {
 
   const manifest = JSON.parse(await readFile(path.join(outDir, 'manifest.json'), 'utf8'))
   assert.equal(manifest.imageCount, 1)
+  assert.equal(manifest.cleanPath, 'raw-clean.md')
   assert.equal(manifest.originalPath, path.resolve(input))
   assert.ok(manifest.bytesAfter < manifest.bytesBefore)
 
   const readme = await readFile(path.join(outDir, 'README.md'), 'utf8')
-  assert.match(readme, /clean\.md/)
+  assert.match(readme, /raw-clean\.md/)
 })
 
 test('normalize is idempotent for same originalSha256', async () => {
@@ -70,9 +79,10 @@ test('normalize is idempotent for same originalSha256', async () => {
   assert.equal(first.skipped, false)
   assert.equal(second.skipped, true)
   assert.equal(second.originalSha256, first.originalSha256)
+  assert.equal(path.basename(second.cleanPath), 'raw-clean.md')
 })
 
-test('markdown without base64 still writes clean.md', async () => {
+test('markdown without base64 still writes *-clean.md', async () => {
   const root = await tmpRoot()
   const input = path.join(root, 'plain.md')
   const outDir = path.join(root, 'out')
@@ -80,7 +90,7 @@ test('markdown without base64 still writes clean.md', async () => {
 
   const result = await normalizeMarkdownAssets(input, { outDir })
   assert.equal(result.imageCount, 0)
-  const clean = await readFile(path.join(outDir, 'clean.md'), 'utf8')
+  const clean = await readFile(path.join(outDir, 'plain-clean.md'), 'utf8')
   assert.equal(clean, '# Only text\n\nNo images.\n')
 })
 
@@ -96,7 +106,7 @@ test('feature-dir output lands under analysis/sources', async () => {
     sourceSlug: 'prd-1103',
   })
   assert.ok(result.outDir.endsWith(path.join('artifacts', 'analysis', 'sources', 'prd-1103')))
-  await readFile(path.join(result.outDir, 'clean.md'), 'utf8')
+  await readFile(path.join(result.outDir, 'prd-clean.md'), 'utf8')
 })
 
 test('resolveOutDir rejects unsafe source-slug', () => {
@@ -123,7 +133,7 @@ test('projectRoot sandbox rejects escaping outDir', async () => {
 test('fileNeedsNormalize flags embedded base64', async () => {
   const root = await tmpRoot()
   const dirty = path.join(root, 'dirty.md')
-  const clean = path.join(root, 'clean.md')
+  const clean = path.join(root, 'ok.md')
   await writeFile(dirty, `![x](data:image/png;base64,${TINY_PNG_B64})\n`, 'utf8')
   await writeFile(clean, '# ok\n', 'utf8')
   assert.equal((await fileNeedsNormalize(dirty)).needs, true)

@@ -1,6 +1,6 @@
 /**
  * 解决什么问题：PRD Markdown 常内嵌 data:image base64，整文件进上下文会爆 token，且模型不会当图看。
- * 通过什么方式解决：抽出图片到 assets/，重写为相对路径，写出 clean.md + manifest；不复制原文 base64。
+ * 通过什么方式解决：抽出图片到 assets/，重写为相对路径，写出 `<原名>-clean.md` + manifest；不复制原文 base64。
  * 触发时机：读含嵌入图的 MD 之前。
  * 被谁控制触发：normalize-markdown-assets.mjs；Cursor beforeReadFile 守卫只检测不抽图。
  */
@@ -31,6 +31,14 @@ export function slugifySegment(text, fallback = 'doc') {
     .replace(/-+/g, '-')
     .replace(/^[-._]+|[-._]+$/g, '')
   return (cleaned.slice(0, 80) || fallback).toLowerCase()
+}
+
+/** 由原文路径得到 `<basename>-clean.md`（basename 已含 -clean 则不重复追加）。 */
+export function cleanMarkdownFileName(inputPath) {
+  const base = path.basename(String(inputPath || ''), path.extname(String(inputPath || ''))) || 'doc'
+  const safe = base.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim() || 'doc'
+  const stem = /-clean$/i.test(safe) ? safe.slice(0, -6) : safe
+  return `${stem}-clean.md`
 }
 
 function mimeToExt(mime) {
@@ -69,7 +77,7 @@ function assertPathInside(root, candidate, label) {
 }
 
 /**
- * 将嵌入 base64 图抽到 outDir/assets，写 clean.md / manifest.json / README.md。
+ * 将嵌入 base64 图抽到 outDir/assets，写 `<原名>-clean.md` / manifest.json / README.md。
  * 无嵌入图时：仍写 clean（原文拷贝）与 manifest（imageCount=0），方便统一后续路径。
  * 幂等：originalSha256 相同且 manifest 已存在则跳过写盘。
  */
@@ -87,6 +95,10 @@ export async function normalizeMarkdownAssets(inputPath, options = {}) {
     assertPathInside(projectRoot, outDir, 'outDir')
   }
 
+  const cleanFileName = cleanMarkdownFileName(absoluteInput)
+  const cleanRelative = cleanFileName
+  const cleanPath = path.join(outDir, cleanFileName)
+
   const originalBytes = await readFile(absoluteInput)
   const originalText = originalBytes.toString('utf8')
   const originalSha256 = sha256Hex(originalBytes)
@@ -95,12 +107,16 @@ export async function normalizeMarkdownAssets(inputPath, options = {}) {
   const manifestPath = path.join(outDir, 'manifest.json')
   try {
     const existing = JSON.parse(await readFile(manifestPath, 'utf8'))
-    if (existing.originalSha256 === originalSha256 && existing.cleanPath) {
+    if (
+      existing.originalSha256 === originalSha256 &&
+      existing.cleanPath === cleanRelative
+    ) {
       return {
         ok: true,
         skipped: true,
         outDir,
-        cleanPath: path.join(outDir, 'clean.md'),
+        cleanPath: path.join(outDir, existing.cleanPath),
+        cleanFileName: existing.cleanPath,
         manifestPath,
         imageCount: existing.imageCount || 0,
         bytesBefore: existing.bytesBefore ?? bytesBefore,
@@ -139,7 +155,6 @@ export async function normalizeMarkdownAssets(inputPath, options = {}) {
     await writeFile(path.join(assetsDir, image.fileName), image.bytes)
   }
 
-  const cleanPath = path.join(outDir, 'clean.md')
   await writeFile(cleanPath, cleanText, 'utf8')
   const bytesAfter = Buffer.byteLength(cleanText, 'utf8')
 
@@ -147,7 +162,7 @@ export async function normalizeMarkdownAssets(inputPath, options = {}) {
     schemaVersion: 1,
     originalPath: absoluteInput,
     originalSha256,
-    cleanPath: 'clean.md',
+    cleanPath: cleanRelative,
     assetsDir: images.length ? 'assets' : null,
     imageCount: images.length,
     images: images.map((image) => ({
@@ -159,7 +174,7 @@ export async function normalizeMarkdownAssets(inputPath, options = {}) {
     bytesBefore,
     bytesAfter,
     createdAt: new Date().toISOString(),
-    note: 'Analyze clean.md only. Do not fully read originalPath when it still embeds base64.',
+    note: `Analyze ${cleanRelative} only. Do not fully read originalPath when it still embeds base64.`,
   }
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8')
 
@@ -169,7 +184,7 @@ export async function normalizeMarkdownAssets(inputPath, options = {}) {
     'This folder was produced by `normalize-markdown-assets.mjs`.',
     '',
     `- Original file: \`${absoluteInput}\``,
-    '- Read **`clean.md`** for text/tables.',
+    `- Read **\`${cleanRelative}\`** for text/tables.`,
     '- Read **`assets/*`** only when you need image content.',
     '- Do **not** fully read the original file if it still contains `data:image` base64.',
     '',
@@ -183,6 +198,7 @@ export async function normalizeMarkdownAssets(inputPath, options = {}) {
     skipped: false,
     outDir,
     cleanPath,
+    cleanFileName,
     manifestPath,
     imageCount: images.length,
     bytesBefore,
