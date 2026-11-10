@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "checkedBy": "",
+  "coverage": {},
+  "checks": {
+    "scope": {
+      "result": "pending",
+      "evidence": ""
+    },
+    "behavior": {
+      "result": "pending",
+      "evidence": ""
+    },
+    "contracts": {
+      "result": "pending",
+      "evidence": ""
+    },
+    "boundaries": {
+      "result": "pending",
+      "evidence": ""
+    },
+    "technicalDecisions": {
+      "result": "pending",
+      "evidence": ""
+    },
+    "noAddedRules": {
+      "result": "pending",
+      "evidence": ""
+    }
+  },
+  "digests": {}
+}

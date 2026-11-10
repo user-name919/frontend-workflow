@@ -167,7 +167,7 @@ node .ai-dev/scripts/update-consistency.mjs <feature-dir> resolve <artifact-path
 2. 另写 `artifacts/design/frontend-spec.md` 作为给开发人员看的技术方案副产物：目标、需求对照、空/失败/重试。编号只引用 `intake.json` 的 FR-* 和 `delivery.json` 的 AC-*，不要另起一套。
 3. 必须用 fenced Mermaid 画出至少一张 `flowchart`（或 `graph`）主流程，以及一张 `sequenceDiagram` 时序。图中的页面状态、操作和接口必须能在已确认需求或契约里找到；不要从现有实现反推产品规则。适用时再补状态图；不适用写原因。
 4. 除非已批准约束明确要求，否则不写入无必要的实现选择。`render-artifacts.mjs` 不得覆盖本文件。
-5. 将状态转为 `SPEC_REVIEW`，然后停止。
+5. 按下文「面向技术评审的派生方案」生成评审阅读版并封存两版比较记录，通过 spec 校验后将状态转为 `SPEC_REVIEW`，然后停止。
 
 ## 审核点 2A：SPEC_REVIEW
 
@@ -210,3 +210,25 @@ node .ai-dev/scripts/record-code-changes.mjs <feature-dir> <file...>
 ## 审核点 3：FINAL_REVIEW
 
 展示文件清单、最终 Patch、追踪关系、验证结果、未验证事项和回滚说明。人工记录 `approvals.final` 后才能进入 `COMPLETE`。工作流不会自动 commit、push、创建 PR、merge 或 deploy。
+
+## 面向技术评审的派生方案
+
+保留 `artifacts/design/frontend-spec.md` 的编号、图和任务提取方式。写完编号版后，由主 Agent 基于该版及真实项目证据生成 `artifacts/design/技术方案-技术评审使用.md`。评审版面向人讲解，不要求正文引用 FR/AC；按目标、项目现状、整体方案、关键实现与取舍、边界风险、验证方式组织。必须分别用 `## 架构图` 和 `## 流程图` 放置两张 fenced Mermaid flowchart/graph；架构图区分现有模块与本次变化，必要时另补时序图。禁止增加编号版和已确认契约中没有的业务规则；新增技术决策先同步编号版。
+
+交审前逐项对照两版：范围、行为、接口、异常边界、技术决策、是否新增规则。写独立的比较记录 JSON（可从模板 `review-scheme-sync.json` 起草）：
+
+- `schemaVersion: 1`、`checkedBy` 为实际检查者标识。
+- `coverage` 的键覆盖所有 included FR 和全部 AC；值为 `{ "section": "评审版中真实存在的章节标题", "evidence": "两版相关段落及一致性说明" }`。编号只保存在记录中。
+- `checks` 的 `scope / behavior / contracts / boundaries / technicalDecisions / noAddedRules` 各填 `{ "result": "pass", "evidence": "实际对照位置及结论" }`。有差异先修复，不得为封存填假 pass。
+- `digests` 由脚本计算，不手填。版本一致不代表语义一致；独立审核者仍应直接对照两版和需求原文。
+
+```sh
+node .ai-dev/scripts/sync-review-scheme.mjs <feature-dir> seal --request comparison.json
+node .ai-dev/scripts/sync-review-scheme.mjs <feature-dir> check
+```
+
+脚本只封存比较记录，不生成正文、不批准门禁、不自动清 stale。spec/plan/final 门禁检查图、覆盖和内容哈希，阻止缺失或过期的评审材料。`render-artifacts.mjs` 不覆盖任一方案。
+
+更新时：先 `update-consistency mark` 对应文件，再修改。编号版、intake 或 delivery 改变后同步评审版，重做比较并 seal；仅评审版措辞调整也需重做比较。完成后只对已同步的评审版和 `review-scheme-sync.json` 以及其他实际刷新产物执行 resolve，再按原流程重新审核受影响批准。评审提出业务或技术修改时先更新编号版，再更新评审版。不得用评审版替代任务实现输入。
+
+旧 Workspace 升级模板/脚本后，在下一次 spec/plan/final 审核前补齐这两份文件并重做比较，不自动生成通过记录，也不回退状态。

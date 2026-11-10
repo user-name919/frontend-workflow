@@ -14,6 +14,7 @@ import { readFeature } from './workspace-store.mjs'
 import { blockingStale, readGraph } from './consistency.mjs'
 import { gateAuthorized } from './reviews.mjs'
 import { assertSnapshotBoundApproval } from './review-package.mjs'
+import { validateReviewScheme } from './review-scheme.mjs'
 import { validateTechScheme } from './tech-scheme.mjs'
 
 function err(code, message, extra = {}) {
@@ -34,9 +35,13 @@ const REQUIRED_INPUTS = {
     'artifacts/analysis/intake.json',
     'artifacts/design/delivery.json',
     'artifacts/design/frontend-spec.md',
+    'artifacts/design/技术方案-技术评审使用.md',
+    'artifacts/design/review-scheme-sync.json',
     'artifacts/design/acceptance.md',
   ],
   plan: [
+    'artifacts/design/技术方案-技术评审使用.md',
+    'artifacts/design/review-scheme-sync.json',
     'artifacts/analysis/intake.json',
     'artifacts/design/delivery.json',
     'artifacts/design/implementation-plan.md',
@@ -44,6 +49,8 @@ const REQUIRED_INPUTS = {
     'artifacts/design/traceability.md',
   ],
   final: [
+    'artifacts/design/技术方案-技术评审使用.md',
+    'artifacts/design/review-scheme-sync.json',
     'artifacts/analysis/intake.json',
     'artifacts/design/delivery.json',
     'artifacts/coding-changes/changed-files.json',
@@ -228,6 +235,9 @@ export async function evaluateGate(featureDir, gate) {
       })
       if (!deliveryResult.ok) errors.push(...deliveryResult.errors)
     }
+
+    const reviewScheme = await validateReviewScheme(resolved)
+    errors.push(...reviewScheme.errors)
 
     const specText = await readText(resolved, 'artifacts/design/frontend-spec.md')
     if (gate === 'spec') {

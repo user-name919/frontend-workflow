@@ -56,6 +56,10 @@ Prefer `artifacts/analysis/intake.json` and `artifacts/design/delivery.json` as 
 
 `frontend-spec.md` is the developer-facing tech scheme byproduct, not a second ID ledger. After intake/delivery are drafted, write it in Markdown with a mermaid `flowchart` (or `graph`) and a `sequenceDiagram`. Cite included FR-* / AC-* IDs. Diagram labels must come from confirmed requirements or contracts. Do not invent product rules to make a prettier diagram. Do not overwrite this file with `render-artifacts.mjs`.
 
+## 技术评审阅读版
+
+编号版 frontend-spec.md 与现有任务提取保持不变。完成编号版后，按 `.ai-dev/workflow.md` 的「面向技术评审的派生方案」生成 `artifacts/design/技术方案-技术评审使用.md`，正文不要求 FR/AC，包含架构图、流程图及真实项目背景。逐项核对范围、行为、接口、边界、技术决策和无新增规则，登记 coverage 与证据，用 `sync-review-scheme.mjs seal --request comparison.json` 绑定当前版本。任何输入变化都需同步、重查、重新 seal 并 resolve；技术评审意见先回写编号版。代码实施仍使用现有编号版、台账与任务 brief。
+
 ## Local dashboard observations
 
 When the dashboard observation script is available and your current sandbox permits writing to the project, report this skill's activity using the commands below. After starting, retain the returned `id` and finish the observation when this use of the skill ends or the agent stops:

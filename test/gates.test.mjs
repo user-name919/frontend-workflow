@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url'
 import { execFile as execFileCallback } from 'node:child_process'
 import { promisify } from 'node:util'
 
+import { renderFeatureArtifacts } from '../template/.ai-dev/scripts/render-artifacts.mjs'
+import { writeReviewScheme } from './helpers/review-scheme.mjs'
 import { evaluateGate } from '../template/.ai-dev/scripts/lib/gates.mjs'
 import { createFeatureWorkspace } from '../template/.ai-dev/scripts/init-change.mjs'
 
@@ -193,11 +195,23 @@ test('spec and plan gates require delivery coverage; final needs execution evide
   assert.ok(specNoDiagram.errors.some((e) => e.code === 'MISSING_SEQUENCE'))
 
   await writeFile(path.join(featureDir, 'artifacts/design/frontend-spec.md'), validTechScheme())
+  await writeReviewScheme(featureDir)
+  const reviewPath = path.join(featureDir, 'artifacts/design/技术方案-技术评审使用.md')
+  const readableBefore = await readFile(reviewPath, 'utf8')
+  await renderFeatureArtifacts(featureDir)
+  assert.equal(await readFile(reviewPath, 'utf8'), readableBefore)
+  assert.equal(await readFile(path.join(featureDir, 'artifacts/design/frontend-spec.md'), 'utf8'), validTechScheme())
   const specOk = await evaluateGate(featureDir, 'spec')
   assert.equal(specOk.ok, true)
 
   const planOk = await evaluateGate(featureDir, 'plan')
   assert.equal(planOk.ok, true)
+  await writeFile(reviewPath, readableBefore + '\n评审版有变更')
+  for (const gate of ['spec', 'plan', 'final']) {
+    const stale = await evaluateGate(featureDir, gate)
+    assert.ok(stale.errors.some(e => e.code === 'REVIEW_SYNC_STALE'))
+  }
+  await writeFile(reviewPath, readableBefore)
 
   // plan placeholder
   await writeFile(path.join(featureDir, 'artifacts/design/implementation-plan.md'), '# Plan\n\n[TODO]\n')

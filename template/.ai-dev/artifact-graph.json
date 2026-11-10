@@ -26,14 +26,15 @@
     "invalidatesApprovals": ["scope", "spec", "plan", "final"]
   },
   "artifacts/design/frontend-spec.md": {
-    "downstream": ["artifacts/design/acceptance.md", "artifacts/design/implementation-plan.md"],
+    "downstream": ["artifacts/design/acceptance.md", "artifacts/design/implementation-plan.md", "artifacts/design/技术方案-技术评审使用.md"],
     "invalidatesApprovals": ["spec", "plan", "final"]
   },
   "artifacts/design/delivery.json": {
     "downstream": [
       "artifacts/design/acceptance.md",
       "artifacts/design/tasks.md",
-      "artifacts/design/traceability.md"
+      "artifacts/design/traceability.md",
+      "artifacts/design/技术方案-技术评审使用.md"
     ],
     "invalidatesApprovals": ["spec", "plan", "final"]
   },
@@ -64,5 +65,13 @@
   "artifacts/verification/verification.md": {
     "downstream": [],
     "invalidatesApprovals": ["final"]
+  },
+  "artifacts/design/技术方案-技术评审使用.md": {
+    "downstream": ["artifacts/design/review-scheme-sync.json"],
+    "invalidatesApprovals": ["spec", "plan", "final"]
+  },
+  "artifacts/design/review-scheme-sync.json": {
+    "downstream": [],
+    "invalidatesApprovals": ["spec", "plan", "final"]
   }
 }

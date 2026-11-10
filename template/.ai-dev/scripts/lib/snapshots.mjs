@@ -25,9 +25,13 @@ const GATE_INPUTS = {
     'artifacts/analysis/intake.json',
     'artifacts/design/delivery.json',
     'artifacts/design/frontend-spec.md',
+    'artifacts/design/技术方案-技术评审使用.md',
+    'artifacts/design/review-scheme-sync.json',
     'artifacts/design/acceptance.md',
   ],
   plan: [
+    'artifacts/design/技术方案-技术评审使用.md',
+    'artifacts/design/review-scheme-sync.json',
     'artifacts/analysis/intake.json',
     'artifacts/design/delivery.json',
     'artifacts/design/implementation-plan.md',
@@ -35,6 +39,8 @@ const GATE_INPUTS = {
     'artifacts/design/traceability.md',
   ],
   final: [
+    'artifacts/design/技术方案-技术评审使用.md',
+    'artifacts/design/review-scheme-sync.json',
     'artifacts/analysis/intake.json',
     'artifacts/design/delivery.json',
     'artifacts/coding-changes/changed-files.json',

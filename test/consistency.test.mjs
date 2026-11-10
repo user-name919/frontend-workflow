@@ -87,8 +87,10 @@ test('marks transitive downstream artifacts stale without changing the workflow 
     'artifacts/coding-changes/changes.patch',
     'artifacts/design/acceptance.md',
     'artifacts/design/implementation-plan.md',
+    'artifacts/design/review-scheme-sync.json',
     'artifacts/design/tasks.md',
     'artifacts/design/traceability.md',
+    'artifacts/design/技术方案-技术评审使用.md',
     'artifacts/verification/verification.md'
   ])
   assert.deepEqual(status.consistency.lastChange, {

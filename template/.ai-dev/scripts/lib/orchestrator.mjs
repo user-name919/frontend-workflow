@@ -25,6 +25,8 @@ const STAGE_INPUTS = {
     'artifacts/analysis/intake.json',
     'artifacts/design/delivery.json',
     'artifacts/design/frontend-spec.md',
+    'artifacts/design/技术方案-技术评审使用.md',
+    'artifacts/design/review-scheme-sync.json',
     'artifacts/design/acceptance.md',
   ],
   generate_plan: [

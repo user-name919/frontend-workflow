@@ -34,6 +34,10 @@ node <skills-root>/prepare-review/scripts/review-contract.mjs check <sealed-pack
 
 Reviewer 发现遗漏标准、新测试结果或版本变化时，先补充对应真实来源/材料并重新 seal，然后重新审核受影响项，不能复用旧通过结论。禁止修改工作流状态、替用户批准、提交、推送或发布。
 
+## 两版技术方案一致性
+
+涉及 spec/plan/final 时，将编号版 `frontend-spec.md`、`技术方案-技术评审使用.md`、`review-scheme-sync.json` 及 intake/delivery 一并纳入审核材料。检查记录的新鲜度和覆盖，并直接阅读两版核对范围、行为、接口、边界和技术决策；检查是否新增未经确认的规则。评审版不要求正文编号。哈希与准备者的 pass 只能证明记录绑定版本，不能替代独立语义审核。存在遗漏、冲突或过期时退回主 Agent 同步；涉及业务决定则上报人工。实现依据仍是编号版与确认台账。
+
 ## Local dashboard observations
 
 When the dashboard observation script is available and your current sandbox permits writing to the project, report this skill's activity using the commands below. After starting, retain the returned `id` and finish the observation when this use of the skill ends or the agent stops:

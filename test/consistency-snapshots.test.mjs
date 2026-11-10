@@ -185,3 +185,19 @@ test('approval snapshot freshness gates plan after live delivery change', async 
   assert.equal(plan.ok, false)
   assert.ok(plan.errors.some((e) => e.code === 'STALE_APPROVAL_SNAPSHOT'))
 })
+
+test('readable scheme and comparison participate in freshness and approval snapshots', async () => {
+  const { featureDir } = await makeFeature()
+  const review = 'artifacts/design/技术方案-技术评审使用.md'
+  const sync = 'artifacts/design/review-scheme-sync.json'
+  let status = await reconcileArtifacts(featureDir, { expectedVersion: 0 })
+  const snapshot = await captureSnapshot(featureDir, { gate: 'spec' })
+  await writeFile(path.join(featureDir, review), '# 修改后的评审内容\n')
+  assert.equal((await verifySnapshot(featureDir, snapshot)).fresh, false)
+  status = await reconcileArtifacts(featureDir, { expectedVersion: status.control.version })
+  assert.ok(status.consistency.staleArtifacts.includes(sync))
+  await writeFile(path.join(featureDir, 'artifacts/design/frontend-spec.md'), '# 编号版新增约束\n')
+  status = await reconcileArtifacts(featureDir, { expectedVersion: status.control.version })
+  assert.ok(status.consistency.staleArtifacts.includes(review))
+  assert.ok(status.consistency.staleArtifacts.includes(sync))
+})

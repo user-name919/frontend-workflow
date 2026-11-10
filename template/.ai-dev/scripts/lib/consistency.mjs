@@ -87,6 +87,8 @@ const TRACKED_ARTIFACTS = [
   'artifacts/analysis/open-questions.md',
   'artifacts/design/delivery.json',
   'artifacts/design/frontend-spec.md',
+  'artifacts/design/技术方案-技术评审使用.md',
+  'artifacts/design/review-scheme-sync.json',
   'artifacts/design/implementation-plan.md',
   'artifacts/design/acceptance.md',
   'artifacts/design/tasks.md',
