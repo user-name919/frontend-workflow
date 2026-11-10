@@ -1,0 +1,66 @@
+{
+  "stages": [
+    { "id": "INGEST", "name": "需求分析", "description": "整理需求资料、项目证据和前端职责。" },
+    { "id": "SCOPE_REVIEW", "name": "范围审核", "description": "确认本次需求范围、职责和待解决问题。" },
+    { "id": "SPEC_REVIEW", "name": "方案审核", "description": "核对前端方案、交互和验收标准。" },
+    { "id": "PLAN_REVIEW", "name": "计划审核", "description": "核对实施任务、文件范围和验证计划。" },
+    { "id": "IMPLEMENTING", "name": "实施", "description": "按任务修改项目，并逐项进行独立审核。" },
+    { "id": "VERIFYING", "name": "验证", "description": "执行已确认的检查，整理代码变更和验证结果。" },
+    { "id": "FINAL_REVIEW", "name": "最终审核", "description": "核对完整交付物并等待最终人工批准。" },
+    { "id": "COMPLETE", "name": "完成", "description": "需求工作流已完成。" }
+  ],
+  "components": {
+    "skill": {
+      "prd-to-code": { "name": "需求到代码", "description": "按阶段分析需求、制定方案、实施并验证代码。" },
+      "prepare-review": { "name": "准备审核材料", "description": "依据已确认需求整理可独立核查的材料包。" },
+      "review-delivery": { "name": "独立审核交付", "description": "在独立上下文中对照需求检查产物并给出结论。" }
+    },
+    "script": {
+      "init-change.mjs": { "name": "初始化需求", "description": "创建需求工作区，记录项目基线和已有改动。" },
+      "normalize-markdown-assets.mjs": { "name": "整理需求图片", "description": "提取 Markdown 内嵌图片，生成便于阅读的材料。" },
+      "import-artifacts.mjs": { "name": "导入旧需求材料", "description": "整理或接收旧工作区的结构化导入材料。", "actions": { "draft": "生成供人工确认的导入草稿。", "accept": "接收人工确认的导入草稿并更新产物。" } },
+      "render-artifacts.mjs": { "name": "生成需求文档", "description": "根据结构化台账生成 Markdown 阅读视图。" },
+      "workflow-control.mjs": { "name": "工作流控制", "description": "查询下一步，或按授权记录阶段、审批与阻断。", "actions": { "next": "核对产物一致性并计算下一步动作。", "inspect": "只读检查需求状态和迁移信息。", "migrate": "迁移旧状态结构，不自动补充审批。", "transition": "检查前置条件并推进工作流阶段。", "block": "记录阻断原因并暂停工作流。", "resume": "检查条件后从阻断状态恢复。", "approve": "登记人工对当前审核点的决定。", "delegate": "记录本需求对独立审核的授权。", "recover": "确认原执行者停止后恢复任务占用。" } },
+      "validate-change.mjs": { "name": "检查工作流材料", "description": "检查需求结构、引用和指定审核点的准入条件。" },
+      "update-consistency.mjs": { "name": "同步产物一致性", "description": "标记受影响的产物或登记已经完成的刷新。", "actions": { "mark": "标记上游变更及受影响的下游产物。", "resolve": "登记实际已经刷新的下游产物。" } },
+      "snapshot-change.mjs": { "name": "检查材料快照", "description": "捕获或核对审核材料的内容指纹。", "actions": { "capture": "保存当前审核输入的内容指纹。", "verify": "检查审核输入是否仍与快照一致。" } },
+      "prepare-task.mjs": { "name": "准备实施任务", "description": "整理当前任务的需求、允许修改的文件和验证信息。" },
+      "record-task-result.mjs": { "name": "记录任务执行", "description": "登记任务开始、实施结果或中断恢复。", "actions": { "start": "登记当前任务和执行轮次开始。", "accept": "接收实施结果；完成后仍需独立审核。", "inspect": "只读检查任务中断现场。", "recover": "确认执行者停止后恢复任务占用。" } },
+      "record-code-changes.mjs": { "name": "记录代码改动", "description": "生成修改文件清单、源码索引和最终补丁。" },
+      "record-review.mjs": { "name": "登记审核结果", "description": "转换、校验、判断或接收独立审核报告。", "actions": { "adapt": "转换独立审核材料和报告的格式。", "validate": "核对审核报告结构和引用。", "decide": "根据审核结论判断修复或升级方向。", "accept": "校验并登记审核报告及结论。" } },
+      "run-verification.mjs": { "name": "运行项目验证", "description": "执行任务配置的真实验证命令并记录结果。" },
+      "review-contract.mjs": { "name": "审核材料契约检查", "description": "封装或检查独立审核材料与报告。", "actions": { "seal": "为审核材料封包并绑定内容指纹。", "check": "检查审核包是否完整且仍然新鲜。", "report": "检查独立审核报告是否符合契约。" } },
+      "record-observation.mjs": { "name": "上报工作流活动", "description": "由 Agent 上报工作流 Skill 的使用情况。" }
+    },
+    "hook": {
+      "normalize-md-guard.mjs": { "name": "检查需求文件读取", "description": "读取 Markdown 前检查是否需要先清洗内嵌图片。" },
+      "request-review.mjs": { "name": "提醒发起审核", "description": "主 Agent 停止时检查待审核任务，必要时提醒派审。" },
+      "review-visible.mjs": { "name": "提示审核已启动", "description": "审核子 Agent 启动时提示查看审核过程。" },
+      "review-finished.mjs": { "name": "提醒登记审核结果", "description": "审核子 Agent 结束后提醒主 Agent 登记并展示结论。" }
+    },
+    "command": {
+      "verification-command": { "name": "运行项目验证", "description": "执行当前任务配置的项目验证命令，结果以工作流验证记录为准。" }
+    },
+    "module": {
+      "capabilities.mjs": { "name": "宿主能力", "description": "读取宿主能力声明并决定可用的审核方式。" },
+      "consistency.mjs": { "name": "产物一致性", "description": "核对产物变化并标记受影响的下游内容。" },
+      "delivery.mjs": { "name": "交付台账", "description": "校验和生成任务、验收及追踪视图。" },
+      "gates.mjs": { "name": "阶段门禁", "description": "检查进入审核点所需的结构和前置条件。" },
+      "intake.mjs": { "name": "需求台账", "description": "校验需求来源、证据和未决问题。" },
+      "markdown-assets.mjs": { "name": "Markdown 图片处理", "description": "检测并提取材料中的内嵌图片。" },
+      "orchestrator.mjs": { "name": "下一步编排", "description": "根据已记录的状态和任务计算下一步。" },
+      "review-adapter.mjs": { "name": "审核格式转换", "description": "转换独立审核报告与工作流之间的数据格式。" },
+      "review-followup.mjs": { "name": "审核提醒", "description": "查找待审核任务并避免重复催审。" },
+      "review-loop.mjs": { "name": "审核结果分流", "description": "决定审核后修复、补证或请求人工处理。" },
+      "review-package.mjs": { "name": "审核材料包", "description": "准备审核清单并核对批准绑定的快照。" },
+      "review-summary.mjs": { "name": "审核摘要", "description": "生成审核结论和给人阅读的摘要。" },
+      "reviews.mjs": { "name": "审核记录", "description": "校验和登记审核报告及授权。" },
+      "snapshots.mjs": { "name": "内容快照", "description": "创建并核对材料和项目内容指纹。" },
+      "task-runs.mjs": { "name": "任务运行记录", "description": "管理任务执行轮次、结果和中断恢复。" },
+      "tech-scheme.mjs": { "name": "技术方案检查", "description": "检查技术方案中的需求引用及图示。" },
+      "verification.mjs": { "name": "验证执行", "description": "执行项目验证命令并保存真实结果。" },
+      "workflow-state.mjs": { "name": "阶段状态", "description": "检查合法阶段变更、阻断、批准和委托。" },
+      "workspace-store.mjs": { "name": "需求状态存储", "description": "原子写入需求状态并处理版本冲突。" }
+    }
+  }
+}

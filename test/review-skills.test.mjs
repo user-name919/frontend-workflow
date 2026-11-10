@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, writeFile, symlink } from 'node:fs/promises'
+import { execFile as execFileCallback } from 'node:child_process'
+import { mkdtemp, mkdir, readFile, readdir, rm, writeFile, symlink } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
+import { promisify } from 'node:util'
+import { fileURLToPath } from 'node:url'
 
 import * as api from '../.agents/skills/prepare-review/scripts/review-contract.mjs'
+import { startSkillObservation } from '../template/.ai-dev/scripts/lib/monitor-events.mjs'
+
+const execFile = promisify(execFileCallback)
 
 function draft() {
   return {
@@ -28,6 +34,30 @@ async function fixture() {
   return {root,packet}
 }
 test('contract API exists', () => assert.equal(typeof api.validatePacket,'function'))
+test('standalone contract records its CLI use without loading code from the target project', async (t) => {
+  const { root, packet } = await fixture()
+  t.after(() => rm(root, { recursive: true, force: true }))
+  const featureDir = path.join(root, '.ai-dev', 'features', 'REQ-1')
+  const injectedModule = path.join(root, '.ai-dev', 'scripts', 'lib')
+  await mkdir(featureDir, { recursive: true })
+  await mkdir(injectedModule, { recursive: true })
+  await writeFile(path.join(injectedModule, 'monitor-events.mjs'), 'throw new Error("untrusted project code must not run")')
+  const packetFile = path.join(featureDir, 'sealed.json')
+  await writeFile(packetFile, JSON.stringify(packet))
+  const skillId = startSkillObservation(root, featureDir, 'prepare-review')
+  const script = fileURLToPath(new URL('../.agents/skills/prepare-review/scripts/review-contract.mjs', import.meta.url))
+  const result = await execFile(process.execPath, [script, 'check', packetFile, root], { env: { ...process.env, WORKFLOW_SKILL_RUN_ID: skillId } })
+  assert.equal(JSON.parse(result.stdout).ok, true)
+  const eventDir = path.join(root, '.ai-dev', 'runtime', 'dashboard', 'events')
+  const eventNames = await readdir(eventDir)
+  const events = await Promise.all(eventNames.map(async (name) => JSON.parse(await readFile(path.join(eventDir, name), 'utf8'))))
+  const event = events.find((item) => item.component === 'review-contract.mjs')
+  assert.equal(event.component, 'review-contract.mjs')
+  assert.equal(event.action, 'check')
+  assert.equal(event.featureId, 'REQ-1')
+  assert.equal(event.parentId, skillId)
+  assert.equal(event.status, 'completed')
+})
 test('valid packet has no errors', () => assert.deepEqual(api.validatePacket(draft()),[]))
 test('missing acceptance coverage cannot look ready', () => {
   const p=draft(); p.checks[0].kind='engineering';p.checks[0].requirementIds=[]

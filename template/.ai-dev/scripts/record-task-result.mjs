@@ -12,6 +12,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
+import { traceCli, updateCurrentTrace } from './lib/monitor-events.mjs'
 import {
   acceptTaskResult,
   inspectInterruptedTask,
@@ -50,6 +51,7 @@ async function main(argv) {
 
   if (!requestPath) throw new StoreError('INVALID_REQUEST', usage())
   const request = await loadJson(requestPath)
+  updateCurrentTrace({ taskId: request.taskId, attemptId: request.attemptId })
 
   // start：登记 reservation；重复提交时 duplicate 为真，避免双工人同时改同一任务。
   if (action === 'start') {
@@ -79,6 +81,7 @@ async function main(argv) {
   // accept：写入任务报告。DONE / DONE_WITH_CONCERNS 会落到 review_pending，不能当成已终审。
   if (!reportPath) throw new StoreError('INVALID_REQUEST', usage())
   const report = await loadJson(reportPath)
+  updateCurrentTrace({ taskId: report.taskId, attemptId: report.attemptId })
   const accepted = await acceptTaskResult(featureDir, report, {
     expectedVersion: request.expectedVersion,
     actor: request.actor,
@@ -99,6 +102,7 @@ async function main(argv) {
 
 const invokedPath = process.argv[1] && path.resolve(process.argv[1])
 if (invokedPath === fileURLToPath(import.meta.url)) {
+  traceCli('record-task-result.mjs')
   try {
     await main(process.argv.slice(2))
   } catch (error) {

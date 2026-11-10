@@ -13,6 +13,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { randomBytes } from 'node:crypto'
 
+import { traceCli } from './lib/monitor-events.mjs'
 import { validateIntake, renderIntake } from './lib/intake.mjs'
 import { validateDelivery, renderDelivery } from './lib/delivery.mjs'
 import { readFeature } from './lib/workspace-store.mjs'
@@ -94,6 +95,7 @@ export async function renderFeatureArtifacts(featureDir, options = {}) {
 const invokedPath = process.argv[1] && path.resolve(process.argv[1])
 // CLI：对单个 feature-dir 全量渲染，成功打印 written 列表，失败带错误码退出。
 if (invokedPath === fileURLToPath(import.meta.url)) {
+  traceCli('render-artifacts.mjs')
   const featureDir = process.argv[2]
   if (!featureDir) {
     console.error('Usage: node .ai-dev/scripts/render-artifacts.mjs <feature-dir>')

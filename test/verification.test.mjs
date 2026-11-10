@@ -10,6 +10,7 @@ import { promisify } from 'node:util'
 import { createFeatureWorkspace } from '../template/.ai-dev/scripts/init-change.mjs'
 import { runVerification } from '../template/.ai-dev/scripts/lib/verification.mjs'
 import { captureSnapshot } from '../template/.ai-dev/scripts/lib/snapshots.mjs'
+import { readDashboard } from '../template/.ai-dev/scripts/dashboard.mjs'
 
 const execFile = promisify(execFileCallback)
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -123,4 +124,25 @@ test('missing command is unverified; timeout and source change are not passed', 
   })
   assert.notEqual(changedResult.status, 'passed')
   assert.equal(changedResult.status, 'failed')
+})
+
+test('dashboard observes a verification command while it is running and after it ends', async () => {
+  const { projectRoot, featureDir } = await makeFeature([
+    { command: process.execPath, args: ['-e', 'setTimeout(() => process.exit(0), 1000)'] },
+  ])
+  const execution = runVerification(featureDir, { taskId: 'T1', commandIndex: 0 })
+  let observed
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const dashboard = await readDashboard(projectRoot)
+    observed = dashboard.observations.find((event) => event.kind === 'command' && event.status === 'running')
+    if (observed) break
+    await new Promise((resolve) => setTimeout(resolve, 20))
+  }
+  assert.ok(observed, 'the command should be visible before it completes')
+  assert.equal(observed.taskId, 'T1')
+  assert.equal(observed.command, path.basename(process.execPath))
+  const result = await execution
+  assert.equal(result.status, 'passed')
+  const dashboard = await readDashboard(projectRoot)
+  assert.equal(dashboard.observations.find((event) => event.id === observed.id).status, 'completed')
 })

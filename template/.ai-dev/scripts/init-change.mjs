@@ -15,6 +15,8 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 
+import { traceCli } from './lib/monitor-events.mjs'
+
 const execFile = promisify(execFileCallback)
 
 async function exists(target) {
@@ -194,6 +196,7 @@ function parseArgs(args) {
 const invokedPath = process.argv[1] && path.resolve(process.argv[1])
 // CLI：解析 --title/--id/--id-source 后在 cwd 建工作区，成功时打印相对路径。
 if (invokedPath === fileURLToPath(import.meta.url)) {
+  const trace = traceCli('init-change.mjs')
   try {
     const options = parseArgs(process.argv.slice(2))
     const featureDir = await createFeatureWorkspace(process.cwd(), {
@@ -201,6 +204,7 @@ if (invokedPath === fileURLToPath(import.meta.url)) {
       id: options.id,
       idSource: options['id-source']
     })
+    trace.update({ featureDir })
     console.log(path.relative(process.cwd(), featureDir))
   } catch (error) {
     console.error(error.message)

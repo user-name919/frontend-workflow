@@ -11,6 +11,7 @@ import path from 'node:path'
 import process from 'node:process'
 
 import { fileNeedsNormalize } from '../../.ai-dev/scripts/lib/markdown-assets.mjs'
+import { startActivity } from '../../.ai-dev/scripts/lib/monitor-events.mjs'
 
 async function readStdinJson() {
   const chunks = []
@@ -52,6 +53,8 @@ function suggestOutDir(projectRoot, filePath) {
 }
 
 const input = await readStdinJson()
+const trace = startActivity({ kind: 'hook', component: 'normalize-md-guard.mjs', projectRoot: projectRootFrom(input) })
+process.once('exit', (code) => trace.finish(code))
 const filePath = filePathFrom(input)
 
 if (!filePath || !/\.md$/i.test(filePath)) {

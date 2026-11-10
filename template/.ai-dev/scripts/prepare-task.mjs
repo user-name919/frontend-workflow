@@ -15,6 +15,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 
+import { traceCli } from './lib/monitor-events.mjs'
 import { captureSnapshot } from './lib/snapshots.mjs'
 import { readFeature, StoreError } from './lib/workspace-store.mjs'
 
@@ -277,6 +278,7 @@ async function main(argv) {
 
 const invokedPath = process.argv[1] && path.resolve(process.argv[1])
 if (invokedPath === fileURLToPath(import.meta.url)) {
+  traceCli('prepare-task.mjs')
   try {
     await main(process.argv.slice(2))
   } catch (error) {

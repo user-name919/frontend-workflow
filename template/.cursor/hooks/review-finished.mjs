@@ -7,6 +7,11 @@
  * 被谁控制触发：Cursor 宿主 hooks 配置；本脚本不改状态机、不写 summary.md。
  */
 
+import { startActivity } from '../../.ai-dev/scripts/lib/monitor-events.mjs'
+
+const trace = startActivity({ kind: 'hook', component: 'review-finished.mjs', projectRoot: process.cwd() })
+process.once('exit', (code) => trace.finish(code))
+
 // 子 Agent 已停，本脚本只跟一句，不替主 Agent 落盘。
 // 主 Agent 必须 adapt/decide/accept，并向用户展示审了哪些、结论和原因。
 // 通过则立刻 next；无法确定必须把原因告诉用户，不要代决。

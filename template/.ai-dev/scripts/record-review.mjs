@@ -12,6 +12,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
+import { traceCli, updateCurrentTrace } from './lib/monitor-events.mjs'
 import { acceptReview, validateReview } from './lib/reviews.mjs'
 import { decideReviewAction } from './lib/review-loop.mjs'
 import { adaptDeliveryReview } from './lib/review-adapter.mjs'
@@ -45,6 +46,7 @@ async function main(argv) {
 
   const request = await loadJson(requestPath)
   const report = await loadJson(reportPath)
+  updateCurrentTrace({ taskId: request.taskId || report.taskId, attemptId: request.attemptId || report.attemptId })
 
   // adapt：必须带 sealed packet；合同或工作流校验失败则退出码 1，但不擅自 accept。
   if (action === 'adapt') {
@@ -102,6 +104,7 @@ async function main(argv) {
 
 const invokedPath = process.argv[1] && path.resolve(process.argv[1])
 if (invokedPath === fileURLToPath(import.meta.url)) {
+  traceCli('record-review.mjs')
   try {
     await main(process.argv.slice(2))
   } catch (error) {

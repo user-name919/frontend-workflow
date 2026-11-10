@@ -50,6 +50,20 @@ Cursor：
 
 也可以直接描述需求，由 Agent 根据 Skill 的 `name` 和 `description` 判断是否触发。
 
+## 工作流看板
+
+完成 `setup` 后，在业务项目根目录启动本地看板：
+
+```bash
+node .ai-dev/scripts/dashboard.mjs
+```
+
+浏览器打开终端输出的本机地址，可以查看需求阶段、当前活动、逐次执行记录和组件中文说明，也能直接阅读渲染后的 Markdown 产物与 Mermaid 图。看板只读取工作流状态；记录保存在本项目的 `.ai-dev/runtime/dashboard/`，默认不提交到 Git。按 `Ctrl+C` 停止。
+
+脚本和 Cursor Hook 的记录从安装此版本后开始收集；Skill 活动由 Agent 在有权限时上报。Agent 使用 `WORKFLOW_SKILL_RUN_ID` 显式关联它调用的脚本；没有关联记录时，不根据时间猜测。没有记录的历史活动和只读环境中无法上报的动作会显示为未知，不能视为未执行。
+
+Markdown 中的本地图片限于当前需求工作区，远程图片不会自动加载。看板只在本机监听，不提供审核、执行命令等写操作。
+
 ## 需求 Workspace
 
 每个需求保存在 `.ai-dev/features/<需求ID>/`：

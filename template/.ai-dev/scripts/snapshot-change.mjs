@@ -12,6 +12,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
+import { traceCli } from './lib/monitor-events.mjs'
 import { captureSnapshot, readSnapshot, verifySnapshot } from './lib/snapshots.mjs'
 import { StoreError } from './lib/workspace-store.mjs'
 
@@ -52,6 +53,7 @@ async function main(argv) {
 
 const invokedPath = process.argv[1] && path.resolve(process.argv[1])
 if (invokedPath === fileURLToPath(import.meta.url)) {
+  traceCli('snapshot-change.mjs')
   try {
     await main(process.argv.slice(2))
   } catch (error) {

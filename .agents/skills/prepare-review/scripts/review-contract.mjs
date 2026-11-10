@@ -8,7 +8,8 @@
  */
 
 import { readFile, realpath, stat } from 'node:fs/promises'
-import { createHash } from 'node:crypto'
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { createHash, randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -184,9 +185,57 @@ export async function validateReport(p,r,root) {
   return errors
 }
 
+// This skill is also installed independently, so do not import code from the
+// target project. Observation is optional and must not change CLI output.
+function observeContract(projectRoot, packetFile, action) {
+  if (!projectRoot || !existsSync(path.join(projectRoot, '.ai-dev'))) return
+  try {
+    const root = path.resolve(projectRoot)
+    const runtime = path.join(root, '.ai-dev', 'runtime', 'dashboard')
+    const directory = path.join(runtime, 'events')
+    mkdirSync(directory, { recursive: true })
+    try { writeFileSync(path.join(runtime, '.gitignore'), '*\n', { flag: 'wx' }) } catch (e) { if (e.code !== 'EEXIST') throw e }
+    const relative = path.relative(path.join(root, '.ai-dev', 'features'), path.resolve(packetFile || '.'))
+    const candidate = !relative.startsWith('..') && !path.isAbsolute(relative) ? relative.split(path.sep)[0] : ''
+    let featureId = /^[\w.-]{1,100}$/.test(candidate) ? candidate : null
+    let parentId = null
+    const requestedParent = process.env.WORKFLOW_SKILL_RUN_ID
+    if (/^[a-f0-9-]{36}$/.test(requestedParent || '')) {
+      try {
+        const parent = JSON.parse(readFileSync(path.join(directory, `${requestedParent}.json`), 'utf8'))
+        if (parent.id === requestedParent && parent.kind === 'skill' && parent.source === 'agent' && parent.status === 'running' && (!featureId || !parent.featureId || parent.featureId === featureId)) {
+          parentId = parent.id
+          featureId = featureId || parent.featureId
+        }
+      } catch {}
+    }
+    const now = new Date().toISOString()
+    const event = { schemaVersion: 1, id: randomUUID(), kind: 'script', component: 'review-contract.mjs',
+      action: ['seal','check','report'].includes(action) ? action : null, featureId,
+      taskId: null, attemptId: null, parentId, command: null, source: 'script', status: 'running',
+      startedAt: now, updatedAt: now, endedAt: null, exitCode: null }
+    const save = () => {
+      const temporary = path.join(directory, `.${event.id}-${randomUUID()}.tmp`)
+      writeFileSync(temporary, `${JSON.stringify(event)}\n`, { mode: 0o600 })
+      renameSync(temporary, path.join(directory, `${event.id}.json`))
+    }
+    save()
+    const timer = setInterval(() => { event.updatedAt = new Date().toISOString(); try { save() } catch {} }, 15000)
+    timer.unref()
+    process.once('exit', code => {
+      clearInterval(timer)
+      event.updatedAt = event.endedAt = new Date().toISOString()
+      event.exitCode = code
+      event.status = code === 0 ? 'completed' : 'failed'
+      try { save() } catch {}
+    })
+  } catch {} // A read-only reviewer or absent dashboard must still work.
+}
+
 // 直接当脚本跑时：seal 打印封装后的包；check 只验 packet；report 再验报告。
 // 有错误则打印 {ok,errors} 并设 exitCode=1。ok 不是业务批准。
 if(process.argv[1] && path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
+  observeContract(process.argv[4], process.argv[3], process.argv[2])
   try {
     const [action,packetFile,root,reportFile]=process.argv.slice(2)
     if(!['seal','check','report'].includes(action)||!packetFile||!root||(action==='report'&&!reportFile))

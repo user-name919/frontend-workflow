@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>工作流看板</title>
+  <link rel="stylesheet" href="/dashboard.css">
+  <script src="/vendor/markdown-it.min.js" defer></script>
+  <script src="/dashboard.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <div><strong>工作流看板</strong><span>FRONTEND WORKFLOW</span></div>
+      </div>
+      <div class="connection"><span class="connection-dot"></span><span id="connection-text">正在连接</span></div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="breadcrumb"><span>工作流</span><span class="separator">/</span><span id="project-breadcrumb">当前项目</span></div>
+    <section class="page-heading" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">PROJECT OVERVIEW</p>
+        <h1 id="page-title">工作流进度</h1>
+        <p class="subtitle">在这里查看需求的进展、当前动作和执行记录。</p>
+      </div>
+      <div class="heading-actions">
+        <label class="field-label" for="feature-select">选择需求</label>
+        <select id="feature-select" aria-label="选择需求"><option>正在加载需求…</option></select>
+        <button class="refresh-button" type="button" id="refresh-button" aria-label="立即刷新" title="立即刷新">↻</button>
+      </div>
+    </section>
+
+    <div id="load-error" class="notice error" role="alert" hidden></div>
+    <section class="project-card" aria-label="当前需求">
+      <div class="project-identification">
+        <div class="project-icon" aria-hidden="true">◫</div>
+        <div class="project-copy"><span class="overline">当前项目</span><strong id="project-name">—</strong></div>
+        <span class="project-divider" aria-hidden="true"></span>
+        <div class="requirement-copy"><span class="overline">当前需求</span><div class="requirement-name"><strong id="feature-title">正在加载…</strong><span id="feature-id" class="feature-id"></span></div></div>
+      </div>
+      <div class="status-summary"><span class="overline">当前状态</span><span id="feature-state" class="status-pill neutral">等待数据</span></div>
+    </section>
+
+    <section class="panel progress-panel" aria-labelledby="progress-heading">
+      <div class="section-header">
+        <div><p class="eyebrow">WORKFLOW PROGRESS</p><h2 id="progress-heading">工作流进度</h2></div>
+        <span id="progress-meta" class="header-note">阶段状态以工作流记录为准</span>
+      </div>
+      <div id="stages" class="stages" aria-label="工作流阶段"></div>
+      <div class="stage-description"><span class="description-icon" aria-hidden="true">i</span><span id="stage-description">选择阶段查看说明。</span></div>
+    </section>
+
+    <div class="content-grid">
+      <div class="main-column">
+        <section class="panel active-panel" aria-labelledby="active-heading">
+          <div class="section-header">
+            <div><p class="eyebrow">IN PROGRESS</p><h2 id="active-heading">当前正在执行</h2></div>
+            <span id="active-count" class="count-label">—</span>
+          </div>
+          <div id="active-list" class="active-list" aria-live="polite"></div>
+        </section>
+
+        <section class="panel activity-panel" aria-labelledby="activity-heading">
+          <div class="section-header activity-header">
+            <div><p class="eyebrow">ACTIVITY LOG</p><h2 id="activity-heading">最近执行过程</h2></div>
+            <div class="filters" role="group" aria-label="筛选执行记录">
+              <button type="button" class="filter selected" data-filter="all" aria-pressed="true">全部</button>
+              <button type="button" class="filter" data-filter="script" aria-pressed="false">脚本</button>
+              <button type="button" class="filter" data-filter="skill" aria-pressed="false">Skill</button>
+              <button type="button" class="filter" data-filter="hook" aria-pressed="false">Hook</button>
+            </div>
+          </div>
+          <div id="activity-list" class="activity-list" aria-live="polite"></div>
+          <button type="button" id="more-button" class="more-button" hidden>查看全部记录 <span aria-hidden="true">↓</span></button>
+        </section>
+
+        <section class="panel artifacts-panel" aria-labelledby="artifacts-heading">
+          <div class="section-header">
+            <div><p class="eyebrow">WORKFLOW ARTIFACTS</p><h2 id="artifacts-heading">中间产物</h2></div>
+            <span id="artifact-count" class="count-label">—</span>
+          </div>
+          <p class="artifact-intro">选择产物，直接查看排版后的内容。</p>
+          <label class="artifact-mobile-label" for="artifact-select">选择产物<select id="artifact-select"></select></label>
+          <div class="artifact-layout">
+            <nav id="artifact-nav" class="artifact-nav" aria-label="选择中间产物"></nav>
+            <article class="artifact-reader" aria-labelledby="artifact-title">
+              <div class="artifact-reader-header"><div><h3 id="artifact-title">选择一个产物</h3><p id="artifact-path"></p></div><span id="artifact-updated"></span></div>
+              <div id="artifact-content" class="markdown-body" tabindex="0" aria-live="polite"></div>
+            </article>
+          </div>
+        </section>
+      </div>
+
+      <aside class="side-column">
+        <section class="panel next-panel" aria-labelledby="next-heading">
+          <div class="section-header"><div><p class="eyebrow">UP NEXT</p><h2 id="next-heading">下一步</h2></div><span class="next-arrow" aria-hidden="true">↗</span></div>
+          <div class="next-content"><span class="next-marker" aria-hidden="true">→</span><p id="next-text">正在读取工作流状态。</p></div>
+          <p class="next-note">根据已保存的状态提示，具体操作由工作流继续核对。</p>
+        </section>
+
+        <section class="panel overview-panel" aria-labelledby="overview-heading">
+          <div class="section-header"><div><p class="eyebrow">AT A GLANCE</p><h2 id="overview-heading">需求概览</h2></div></div>
+          <dl class="overview-list">
+            <div><dt>当前任务</dt><dd id="current-task">—</dd></div>
+            <div><dt>产物状态</dt><dd id="artifact-state">—</dd></div>
+            <div><dt>最后更新</dt><dd id="last-updated">—</dd></div>
+          </dl>
+        </section>
+
+        <section class="panel catalog-panel" aria-labelledby="catalog-heading">
+          <div class="section-header"><div><p class="eyebrow">WORKFLOW GUIDE</p><h2 id="catalog-heading">工作流组件</h2></div></div>
+          <p class="catalog-intro">查看各组件的中文说明。实际执行情况以记录为准。</p>
+          <div id="catalog-list" class="catalog-list"></div>
+        </section>
+        <p class="privacy-note"><span aria-hidden="true">◌</span> 数据保存在当前项目，仅本机查看</p>
+      </aside>
+    </div>
+  </main>
+</body>
+</html>

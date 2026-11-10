@@ -12,6 +12,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
+import { traceCli } from './lib/monitor-events.mjs'
 import { mutateFeature, readFeature, StoreError } from './lib/workspace-store.mjs'
 
 async function readGraph(rawChangeDir) {
@@ -192,6 +193,7 @@ export async function resolveArtifacts(rawChangeDir, artifacts, options = {}) {
 
 const invokedPath = process.argv[1] && path.resolve(process.argv[1])
 if (invokedPath === fileURLToPath(import.meta.url)) {
+  traceCli('update-consistency.mjs')
   const [, , rawChangeDir, action, ...artifacts] = process.argv
   // CLI：mark <artifact> 或 resolve <artifact...>，缺参直接失败，避免空操作改账本。
   if (!rawChangeDir || !['mark', 'resolve'].includes(action) || !artifacts.length) {

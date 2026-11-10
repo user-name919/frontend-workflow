@@ -12,6 +12,7 @@ import { promisify } from 'node:util'
 
 import { captureSnapshot, verifySnapshot, readSnapshot } from './snapshots.mjs'
 import { mutateFeature, readFeature, StoreError } from './workspace-store.mjs'
+import { currentTraceId, startActivity } from './monitor-events.mjs'
 
 const execFile = promisify(execFileCallback)
 const DEFAULT_TIMEOUT_MS = 120000
@@ -116,6 +117,16 @@ export async function runVerification(featureDir, input = {}) {
   let summary = ''
   let missingHost = false
 
+  // Store only a safe command label, never arbitrary arguments or output.
+  const executable = path.basename(command)
+  const safeArgument = (value) => typeof value === 'string' && /^[a-zA-Z0-9:_-]{1,60}$/.test(value)
+  const commandLabel = ['npm', 'pnpm', 'yarn', 'bun'].includes(executable) && safeArgument(args[0])
+    ? [executable, args[0], ...(args[0] === 'run' && safeArgument(args[1]) ? [args[1]] : [])].join(' ')
+    : executable
+  const commandTrace = startActivity({
+    kind: 'command', component: 'verification-command', command: commandLabel,
+    projectRoot, featureDir: resolved, taskId, parentId: currentTraceId(),
+  })
   try {
     const result = await execFile(command, args, {
       cwd,
@@ -138,6 +149,8 @@ export async function runVerification(featureDir, input = {}) {
       exitCode = typeof error.code === 'number' ? error.code : 1
       summary = timedOut ? 'timed out' : 'non-zero exit'
     }
+  } finally {
+    commandTrace.finish(exitCode, exitCode === 0 ? 'completed' : 'failed')
   }
 
   const endedAt = new Date().toISOString()

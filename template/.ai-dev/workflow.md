@@ -20,6 +20,12 @@ features/<requirement-id>/
 
 来源文档存在业务编号时优先使用；只有需求名称时自动生成 `REQ-YYYYMMDD-XXXXXX`。生成后的 ID 永不随标题变化。后续获得的正式编号写入 `status.json.externalIds`。
 
+## 本地工作流看板
+
+在已配置工作流的项目根目录运行 `node .ai-dev/scripts/dashboard.mjs`，使用终端输出的本机地址查看需求阶段、逐次执行活动及时间戳，并阅读渲染后的 Markdown 产物和 Mermaid 图。页面只读，不替用户审批或推进阶段。
+
+脚本与 Cursor Hook 的运行记录保存在 `.ai-dev/runtime/dashboard/`，默认不纳入 Git；Skill 活动由 Agent 在允许写入时上报。Agent 通过 `WORKFLOW_SKILL_RUN_ID` 显式关联该 Skill 调用的脚本，不能仅根据时间推断调用关系。记录不可用不会阻止工作流，未记录的历史活动和只读环境中的活动不能推断为未执行。关闭终端或按 `Ctrl+C` 即可停止看板。
+
 ## 状态
 
 ```text

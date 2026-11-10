@@ -12,6 +12,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
+import { traceCli, updateCurrentTrace } from './lib/monitor-events.mjs'
 import { runVerification } from './lib/verification.mjs'
 import { StoreError } from './lib/workspace-store.mjs'
 
@@ -28,12 +29,14 @@ async function main(argv) {
   }
   if (!requestPath) throw new StoreError('INVALID_REQUEST', '--request is required')
   const request = JSON.parse(await readFile(path.resolve(requestPath), 'utf8'))
+  updateCurrentTrace({ taskId: request.taskId })
   const result = await runVerification(featureDir, request)
   console.log(JSON.stringify({ ok: true, result }, null, 2))
 }
 
 const invokedPath = process.argv[1] && path.resolve(process.argv[1])
 if (invokedPath === fileURLToPath(import.meta.url)) {
+  traceCli('run-verification.mjs')
   try {
     await main(process.argv.slice(2))
   } catch (error) {

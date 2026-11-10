@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 
 import { ConflictError, runCli } from '../src/installer.mjs'
 
@@ -61,6 +62,19 @@ test('setup copies workflow, Cursor rule, and every project skill', async () => 
     await readFile(path.join(fixture.projectDir, '.agents/skills/frontend-review/SKILL.md'), 'utf8'),
     'review skill\n'
   )
+})
+
+test('setup includes the local dashboard and recorder in a business project', async (t) => {
+  const fixture = await makeFixture()
+  t.after(() => rm(path.dirname(fixture.packageRoot), { recursive: true, force: true }))
+  const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+  await runCli(['setup', fixture.projectDir], { ...fixture, packageRoot })
+  assert.match(await readFile(path.join(fixture.projectDir, '.ai-dev/dashboard/index.html'), 'utf8'), /工作流看板/)
+  assert.match(await readFile(path.join(fixture.projectDir, '.ai-dev/dashboard/catalog.json'), 'utf8'), /运行项目验证/)
+  assert.match(await readFile(path.join(fixture.projectDir, '.ai-dev/scripts/dashboard.mjs'), 'utf8'), /127\.0\.0\.1/)
+  assert.match(await readFile(path.join(fixture.projectDir, '.ai-dev/scripts/lib/monitor-events.mjs'), 'utf8'), /startActivity/)
+  assert.ok((await readFile(path.join(fixture.projectDir, '.ai-dev/dashboard/vendor/markdown-it.min.js'))).length > 1000)
+  assert.ok((await readFile(path.join(fixture.projectDir, '.ai-dev/dashboard/vendor/mermaid.min.js'))).length > 1000)
 })
 
 test('setup aborts before writing when any destination file conflicts', async () => {

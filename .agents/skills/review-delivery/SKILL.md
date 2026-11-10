@@ -25,3 +25,22 @@ node <skills-root>/prepare-review/scripts/review-contract.mjs report <sealed-pac
 ```
 
 任务 `pass` 只放行**当前任务**，不是 Scope/Spec/Plan/Final 的人工批准，也不提交、合并或部署。仅有 minor 必须仍出 pass。明确已核查、未核查与剩余风险；不能承诺 Skill 或校验器保证模型判断准确。
+
+## Local dashboard observations
+
+When the dashboard observation script is available and your current sandbox permits writing to the project, report this skill's activity using the commands below. After starting, retain the returned `id` and finish the observation when this use of the skill ends or the agent stops:
+
+```sh
+node .ai-dev/scripts/record-observation.mjs start --skill review-delivery --feature-dir <feature-dir>
+node .ai-dev/scripts/record-observation.mjs finish --id <id> --project-root <project-root>
+```
+
+If the feature has not been initialized yet, start the observation with `--project-root <project-root>` instead of `--feature-dir`; it remains a project-level activity. Do this before `init-change` so the initialization can be associated with the skill.
+
+When invoking workflow scripts while this skill is active, pass the returned observation ID explicitly as `WORKFLOW_SKILL_RUN_ID=<id>` in the command environment. For example:
+
+```sh
+WORKFLOW_SKILL_RUN_ID=<id> node .ai-dev/scripts/workflow-control.mjs <feature-dir> next
+```
+
+Use the same explicit environment value when starting a nested skill observation. This establishes an Agent-reported parent relationship; never infer a relationship solely from timing. These records are Agent-reported, not proof of host-level skill execution. If the script is absent or writing is not allowed, continue without recording; never expand permissions or claim an observation was captured. A read-only reviewer must not write the observation.

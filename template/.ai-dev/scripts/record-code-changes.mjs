@@ -14,6 +14,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 
+import { traceCli } from './lib/monitor-events.mjs'
 import { mutateFeature, readFeature } from './lib/workspace-store.mjs'
 
 const execFile = promisify(execFileCallback)
@@ -211,6 +212,7 @@ export async function recordCodeChanges(rawFeatureDir, rawPaths, options = {}) {
 
 const invokedPath = process.argv[1] && path.resolve(process.argv[1])
 if (invokedPath === fileURLToPath(import.meta.url)) {
+  traceCli('record-code-changes.mjs')
   const [, , featureDir, ...files] = process.argv
   // CLI：必须显式列出要入账的相对路径，防止把整个工作区脏文件默认收进去。
   if (!featureDir || !files.length) {

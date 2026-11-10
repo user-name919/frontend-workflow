@@ -11,6 +11,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 
+import { startActivity } from '../../.ai-dev/scripts/lib/monitor-events.mjs'
 import { followupMessage, scanReviewPendingFeatures, shouldInjectReviewFollowup } from '../../.ai-dev/scripts/lib/review-followup.mjs'
 
 async function readStdinJson() {
@@ -54,6 +55,8 @@ async function writeStamp(projectRoot, requested) {
 // 没有目标就输出空对象退出；有目标则记下该键再写 followup_message。
 const input = await readStdinJson()
 const projectRoot = projectRootFrom(input)
+const trace = startActivity({ kind: 'hook', component: 'request-review.mjs', projectRoot })
+process.once('exit', (code) => trace.finish(code))
 const stamp = await readStamp(projectRoot)
 const pending = await scanReviewPendingFeatures(projectRoot)
 const target = pending
@@ -65,6 +68,7 @@ if (!target) {
   process.exit(0)
 }
 
+trace.update({ featureId: target.status.id, taskId: target.taskId || target.status.runtime?.activeTaskId })
 await writeStamp(projectRoot, [...stamp.requested, target.key])
 process.stdout.write(
   `${JSON.stringify({ followup_message: followupMessage(target.taskId || target.status.runtime?.activeTaskId) })}\n`,

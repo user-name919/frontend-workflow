@@ -12,6 +12,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
+import { traceCli } from './lib/monitor-events.mjs'
 import { evaluateGate } from './lib/gates.mjs'
 
 const requiredFiles = [
@@ -196,5 +197,6 @@ async function main(argv) {
 
 const invokedPath = process.argv[1] && path.resolve(process.argv[1])
 if (invokedPath === fileURLToPath(import.meta.url)) {
+  traceCli('validate-change.mjs')
   await main(process.argv.slice(2))
 }

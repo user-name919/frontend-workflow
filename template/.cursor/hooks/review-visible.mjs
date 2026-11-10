@@ -7,6 +7,11 @@
  * 被谁控制触发：Cursor 宿主 hooks 配置；本脚本不拉起子 Agent。
  */
 
+import { startActivity } from '../../.ai-dev/scripts/lib/monitor-events.mjs'
+
+const trace = startActivity({ kind: 'hook', component: 'review-visible.mjs', projectRoot: process.cwd() })
+process.once('exit', (code) => trace.finish(code))
+
 // 子 Agent 已由宿主拉起，这里只提示用户看卡片。
 // 主对话稍后只收审核摘要，不在这里展示过程细节。
 // permission 固定 allow，不拦截子 Agent 继续跑。
