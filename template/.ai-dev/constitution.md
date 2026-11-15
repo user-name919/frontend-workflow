@@ -21,6 +21,9 @@
 
 ## Verification
 
+- Maintain the requirement's `.rag-context/<具体需求名称>.md` under the real project following `.ai-dev/requirement-context.md`; retain confirmed sources and unresolved questions, and compare the summary against final code before feature verification.
+- Explain verified business reasons and limits with concise Chinese comments at complex conditions, subtle boundaries and special handling. Avoid line-by-line narration and unsupported product explanations; remove or update obsolete comments within the changed scope.
+
 - Define acceptance evidence before implementation.
 - Prefer executable checks over model self-assessment.
 - Record commands, results, failures, and unverified items.

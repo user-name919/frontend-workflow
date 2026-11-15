@@ -107,6 +107,8 @@ node .ai-dev/scripts/run-verification.mjs <feature-dir> --request verify.json
 
 ## 产物一致性
 
+需求开发同时维护真实项目根目录的 `.rag-context/<具体需求名称>.md`，详见 [需求上下文与业务注释](requirement-context.md) 和 [摘要模板](templates/requirement-context.md)。分析/规则确认、方案变化、任务完成时同步相应内容；plan 将其列入相关任务文件，任务验收前先完成更新。全部开发完成后，先对照最终代码核查摘要与业务注释，再运行整单验收并制包交审。摘要随本需求变更清单交付，审核时直接对照原始来源与代码；不能以摘要代替来源或批准。
+
 修改已经生成的产物前，传入它相对需求 Workspace 的路径：
 
 ```bash

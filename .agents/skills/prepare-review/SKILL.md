@@ -40,6 +40,10 @@ Reviewer 发现遗漏标准、新测试结果或版本变化时，先补充对�
 
 涉及 spec/plan/final 时，将编号版 `frontend-spec.md`、`技术方案-技术评审使用.md`、`review-scheme-sync.json` 及 intake/delivery 一并纳入审核材料。检查记录的新鲜度和覆盖，并直接阅读两版核对范围、行为、接口、边界和技术决策；检查是否新增未经确认的规则。评审版不要求正文编号。哈希与准备者的 pass 只能证明记录绑定版本，不能替代独立语义审核。存在遗漏、冲突或过期时退回主 Agent 同步；涉及业务决定则上报人工。实现依据仍是编号版与确认台账。
 
+## 需求上下文与业务注释
+
+在 prd-to-code 工作流内，按 `.ai-dev/requirement-context.md` 将本需求的 `.rag-context/<具体需求名称>.md` 作为 `implementation` 材料纳入相关阶段审核，附真实来源与当前代码。task/final 增加摘要是否更新、六部分是否有依据、是否保留未决问题及业务注释是否准确的直接检查，并映射到现有 SPEC-COVERAGE/CODE-QUALITY 或 FINAL-TRACE/FINAL-QUALITY。缺摘要先补材料；不能把摘要当成确认需求或预写“最终代码核对通过”。
+
 ## Local dashboard observations
 
 When the dashboard observation script is available and your current sandbox permits writing to the project, report this skill's activity using the commands below. After starting, retain the returned `id` and finish the observation when this use of the skill ends or the agent stops:

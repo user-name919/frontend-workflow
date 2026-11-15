@@ -25,6 +25,10 @@ Find the repository root, then read `.ai-dev/workflow.md` and `.ai-dev/constitut
 14. Never commit, merge, push, open a PR, deploy, or modify external systems unless the user explicitly requests that separate action.
 15. Node never calls Task/spawn. The host must. A task `pass` emits `review.passed` and the main agent continues. `needs_human` is shown to the user. See `references/review-authority.md`.
 
+## Requirement context and comments
+
+Follow `.ai-dev/requirement-context.md` to maintain one `.rag-context/<具体需求名称>.md` in the real project, using `.ai-dev/templates/requirement-context.md`. Update it when rules/decisions change and before task verification; compare it with final code before feature verification. Include it in relevant task files, change records and review materials. Preserve the six requested sections and unresolved facts; the summary is a derived context aid, not a replacement authority for PRD/decisions or approval. Explain complex business conditions, subtle boundaries and special handling with short Chinese comments about verified reasons and limits; update obsolete comments and do not invent business rationale.
+
 ## Keep artifacts consistent
 
 - Before editing an existing workflow artifact, run `node .ai-dev/scripts/update-consistency.mjs <feature-dir> mark <artifact-path>`.

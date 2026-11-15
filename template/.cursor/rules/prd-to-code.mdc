@@ -15,6 +15,8 @@ Preserve existing changes. Implement one approved task at a time in the real pro
 
 Use acceptance-testing for delivery v2 case design in spec/plan. Run every task verifyId before DONE/review_pending; run every finalCheckId in VERIFYING with scope=feature. Read `.ai-dev/acceptance-testing.md`. A mock pass does not replace mandatory live integration; only current, complete per-case evidence admits final review. Record real manual confirmation separately and re-seal new evidence before final approval.
 
+Follow `.ai-dev/requirement-context.md`: maintain `.rag-context/<具体需求名称>.md` in the real project with goals, confirmed rules, implementation, decisions, open questions and sources. Update before task tests and compare against final code before feature tests; include it in task scope and review materials. Write concise Chinese comments for complex business reasons and limits, without inventing unconfirmed rationale.
+
 Inspect, modify, run, and verify business code directly in the developer's current project so the Agent and human reviewer use the same local environment. Do not require a Worktree or use artifact links as the execution path. Determine framework, versions, package manager, and commands from the real repository itself.
 
 After implementation, run `node .ai-dev/scripts/record-code-changes.mjs <feature-dir> <file...>` to create the changed-file manifest, live file links, and final patch. Before editing an existing workflow artifact, mark its relative artifact path with `update-consistency.mjs`; refresh the downstream files, then resolve only the files actually updated. Artifact synchronization must not move `status.json.state` backward.

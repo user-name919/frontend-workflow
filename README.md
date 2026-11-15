@@ -258,3 +258,9 @@ npx --yes github:user-name919/frontend-workflow#vX.Y.Z setup .
 - [设计方案](docs/plans/2026-11-15-requirement-acceptance-testing.md)
 
 旧 delivery v1 只保留历史命令证据，进行中的需求需在下一次门禁前补齐 v2 并重新审核；已 COMPLETE 的历史需求不自动重开。
+
+## 需求上下文与业务注释
+
+开发时由主 Agent 在真实项目根目录维护 `.rag-context/<具体需求名称>.md`，保留需求目标、已确认规则、技术实现、重要决策、待确认问题和信息依据。规则/方案变化时同步，任务测试前更新，整单测试前对照最终代码；独立审核核对摘要与原文、代码是否一致。复杂业务判断和特殊边界用简短中文注释解释有依据的原因与限制。
+
+接入方式与边界见 [需求上下文规范](template/.ai-dev/requirement-context.md)，起草使用 [摘要模板](template/.ai-dev/templates/requirement-context.md)。这是现有开发和审核流程中的维护要求，不新增审批阶段。

@@ -32,6 +32,10 @@ node <skills-root>/prepare-review/scripts/review-contract.mjs report <sealed-pac
 
 涉及 spec/plan/final 时，将编号版 `frontend-spec.md`、`技术方案-技术评审使用.md`、`review-scheme-sync.json` 及 intake/delivery 一并纳入审核材料。检查记录的新鲜度和覆盖，并直接阅读两版核对范围、行为、接口、边界和技术决策；检查是否新增未经确认的规则。评审版不要求正文编号。哈希与准备者的 pass 只能证明记录绑定版本，不能替代独立语义审核。存在遗漏、冲突或过期时退回主 Agent 同步；涉及业务决定则上报人工。实现依据仍是编号版与确认台账。
 
+## 需求上下文与业务注释
+
+在 prd-to-code 工作流内，依据 `.ai-dev/requirement-context.md`，直接对照本需求摘要、确认资料和当前代码：规则/方案是否过期，计划是否被误写为已实现，未决问题是否被擅自关闭，文件/函数引用是否真实。task/final 同时检查本次复杂业务判断、边界和特殊处理的中文注释是否说明有依据的原因与限制，不按注释数量或篇幅评分。摘要中的“已核对”不是通过证据；失实回主 Agent，业务未决留给人，不由 reviewer 改写事实。
+
 ## Local dashboard observations
 
 When the dashboard observation script is available and your current sandbox permits writing to the project, report this skill's activity using the commands below. After starting, retain the returned `id` and finish the observation when this use of the skill ends or the agent stops:

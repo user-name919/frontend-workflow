@@ -31,9 +31,9 @@ Required rule IDs are listed on each review request. Reports must include a chec
 
 | ruleId | Intent |
 | --- | --- |
-| SPEC-COVERAGE | Diff satisfies linked requirements / acceptance |
+| SPEC-COVERAGE | Diff satisfies linked requirements / acceptance; the requirement context reflects current confirmed rules and actual implementation |
 | NO-EXTRA-SCOPE | No unexplained extra behavior |
-| CODE-QUALITY | Matches repo conventions; no obvious defects in allowed files |
+| CODE-QUALITY | Matches repo conventions; no obvious defects; complex business branches and subtle boundaries have concise Chinese comments with supported reasons, without obsolete or invented rationale |
 | TEST-EVIDENCE | Verification evidence exists or gaps are explicit |
 
 ## Final (`gate=final`)
@@ -41,6 +41,6 @@ Required rule IDs are listed on each review request. Reports must include a chec
 | ruleId | Intent |
 | --- | --- |
 | FINAL-INTEGRATION | Cross-task integration holds on the full requirement diff |
-| FINAL-TRACE | Delivered files and acceptance evidence align with delivery.json |
-| FINAL-QUALITY | Overall code quality and verification are acceptable |
+| FINAL-TRACE | Delivered files, requirement context and acceptance evidence align with delivery.json and original confirmed sources |
+| FINAL-QUALITY | Overall code quality and verification are acceptable; final context/code/comment consistency was actually checked |
 | FINAL-HUMAN-ITEMS | Items needing human judgment are listed, not silently closed |
