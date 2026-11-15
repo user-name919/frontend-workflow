@@ -1,6 +1,13 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "acceptance": [],
   "tasks": [],
-  "links": []
+  "links": [],
+  "testCases": [],
+  "verification": {
+    "inputs": [],
+    "environments": [],
+    "checks": [],
+    "finalCheckIds": []
+  }
 }

@@ -13,6 +13,8 @@ Require source or repository evidence for material claims. Apply the workflow ev
 
 Preserve existing changes. Implement one approved task at a time in the real project recorded by the feature status. Do not automatically commit, merge, push, or deploy. Run the repository verification commands and update the feature's traceability and verification artifacts.
 
+Use acceptance-testing for delivery v2 case design in spec/plan. Run every task verifyId before DONE/review_pending; run every finalCheckId in VERIFYING with scope=feature. Read `.ai-dev/acceptance-testing.md`. A mock pass does not replace mandatory live integration; only current, complete per-case evidence admits final review. Record real manual confirmation separately and re-seal new evidence before final approval.
+
 Inspect, modify, run, and verify business code directly in the developer's current project so the Agent and human reviewer use the same local environment. Do not require a Worktree or use artifact links as the execution path. Determine framework, versions, package manager, and commands from the real repository itself.
 
 After implementation, run `node .ai-dev/scripts/record-code-changes.mjs <feature-dir> <file...>` to create the changed-file manifest, live file links, and final patch. Before editing an existing workflow artifact, mark its relative artifact path with `update-consistency.mjs`; refresh the downstream files, then resolve only the files actually updated. Artifact synchronization must not move `status.json.state` backward.

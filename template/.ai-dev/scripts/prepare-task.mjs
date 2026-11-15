@@ -11,6 +11,7 @@ import { createHash } from 'node:crypto'
 import { execFile as execFileCallback } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { taskChecks } from './lib/acceptance-plan.mjs'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
@@ -148,7 +149,8 @@ export async function prepareTask(featureDir, taskId, options = {}) {
 
   const intake = await readJson(path.join(resolved, 'artifacts/analysis/intake.json'))
   const delivery = await readJson(path.join(resolved, 'artifacts/design/delivery.json'))
-  const task = (delivery.tasks || []).find((item) => item.id === taskId)
+  const definedTask = (delivery.tasks || []).find((item) => item.id === taskId)
+  const task = definedTask && { ...definedTask, verify: taskChecks(delivery, definedTask) }
   // 未知 taskId 直接失败，避免为计划外工作生成 brief。
   if (!task) throw new StoreError('UNKNOWN_TASK', `Task ${taskId} is not in delivery.json`)
 
@@ -204,6 +206,7 @@ export async function prepareTask(featureDir, taskId, options = {}) {
     beforeSnapshotId: snapshot.id,
     allowedFiles: task.files || [],
     commands: task.verify || [],
+    testCases: (delivery.testCases || []).filter((tc) => tc.requiredAt.includes(`task:${taskId}`)),
     searchRecords,
     exportedInterfacesFromDeps: depInterfaces,
   }

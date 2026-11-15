@@ -31,7 +31,8 @@ async function main(argv) {
   const request = JSON.parse(await readFile(path.resolve(requestPath), 'utf8'))
   updateCurrentTrace({ taskId: request.taskId })
   const result = await runVerification(featureDir, request)
-  console.log(JSON.stringify({ ok: true, result }, null, 2))
+  console.log(JSON.stringify({ ok: result.status === 'passed', result }, null, 2))
+  if (result.status !== 'passed') process.exitCode = 1
 }
 
 const invokedPath = process.argv[1] && path.resolve(process.argv[1])

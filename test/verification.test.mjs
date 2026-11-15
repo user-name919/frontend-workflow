@@ -146,3 +146,13 @@ test('dashboard observes a verification command while it is running and after it
   const dashboard = await readDashboard(projectRoot)
   assert.equal(dashboard.observations.find((event) => event.id === observed.id).status, 'completed')
 })
+
+test('runner detects source changes even without a caller-supplied snapshot', async () => {
+  const { featureDir } = await makeFeature([{
+    command: process.execPath,
+    args: ['-e', 'require("fs").writeFileSync("src/retry.js", "changed during test")'],
+  }])
+  const result = await runVerification(featureDir, { taskId: 'T1', commandIndex: 0 })
+  assert.equal(result.status, 'failed')
+  assert.ok(result.inputSnapshotId)
+})

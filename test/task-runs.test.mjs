@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { inspectionDelivery } from './helpers/acceptance.mjs'
+import { runVerification } from '../template/.ai-dev/scripts/lib/verification.mjs'
 import { cp, mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -71,7 +73,7 @@ async function makeFeature(id = 'REQ-RUN') {
   await git(projectRoot, 'commit', '-m', 'init')
   const featureDir = await createFeatureWorkspace(projectRoot, { id, idSource: 'user', title: id })
   await writeFile(path.join(featureDir, 'artifacts/analysis/intake.json'), `${JSON.stringify(intake(), null, 2)}\n`)
-  await writeFile(path.join(featureDir, 'artifacts/design/delivery.json'), `${JSON.stringify(delivery(), null, 2)}\n`)
+  await writeFile(path.join(featureDir, 'artifacts/design/delivery.json'), `${JSON.stringify(inspectionDelivery(delivery()), null, 2)}\n`)
   return { projectRoot, featureDir }
 }
 
@@ -101,13 +103,14 @@ test('DONE becomes review_pending; replay is idempotent; late old attempt is rej
     hostRunId: 'HOST-1',
     expectedVersion: status.control.version,
   })
+  const verified = await runVerification(featureDir, { scope: 'task', taskId: 'T1', attemptId: 'A1', checkId: 'T1-CHECK-0' })
   status = await readFeature(featureDir)
-  const accepted = await acceptTaskResult(featureDir, doneReport(), { expectedVersion: status.control.version })
+  const accepted = await acceptTaskResult(featureDir, doneReport({ verificationIds: [verified.id] }), { expectedVersion: status.control.version })
   assert.equal(accepted.runStatus, 'review_pending')
   assert.notEqual(accepted.runStatus, 'passed')
   assert.equal(accepted.status.runtime.taskResults.T1.status, 'review_pending')
 
-  const replay = await acceptTaskResult(featureDir, doneReport(), {
+  const replay = await acceptTaskResult(featureDir, doneReport({ verificationIds: [verified.id] }), {
     expectedVersion: accepted.status.control.version,
   })
   assert.equal(replay.idempotent, true)
@@ -138,10 +141,11 @@ test('business-conflict concerns escalate; extra files do not block accept', asy
     expectedVersion: status.control.version,
   })
   await writeFile(path.join(projectRoot, 'src/extra.js'), 'export const leftover = true\n')
+  const verified = await runVerification(featureDir, { scope: 'task', taskId: 'T1', attemptId: 'A1', checkId: 'T1-CHECK-0' })
   status = await readFeature(featureDir)
   const accepted = await acceptTaskResult(
     featureDir,
-    doneReport({ changedFiles: ['src/retry.js', 'src/extra.js'] }),
+    doneReport({ changedFiles: ['src/retry.js', 'src/extra.js'], verificationIds: [verified.id] }),
     { expectedVersion: status.control.version },
   )
   assert.equal(accepted.runStatus, 'review_pending')
@@ -154,7 +158,7 @@ test('business-conflict concerns escalate; extra files do not block accept', asy
     title: 'Other',
   })
   await writeFile(path.join(otherDir, 'artifacts/analysis/intake.json'), `${JSON.stringify(intake(), null, 2)}\n`)
-  await writeFile(path.join(otherDir, 'artifacts/design/delivery.json'), `${JSON.stringify(delivery(), null, 2)}\n`)
+  await writeFile(path.join(otherDir, 'artifacts/design/delivery.json'), `${JSON.stringify(inspectionDelivery(delivery()), null, 2)}\n`)
   await prepareTask(otherDir, 'T1', { attemptId: 'A1' })
   const other = await readFeature(otherDir)
   const second = await startTask(otherDir, {

@@ -85,7 +85,7 @@ export async function renderFeatureArtifacts(featureDir, options = {}) {
     } catch {
       taskResults = {}
     }
-    Object.assign(files, renderDelivery(intake, delivery, taskResults))
+    Object.assign(files, renderDelivery(intake, delivery, taskResults, { phase: options.phase || 'plan' }))
   }
 
   await writeAllOrNothing(resolved, files)
@@ -102,7 +102,9 @@ if (invokedPath === fileURLToPath(import.meta.url)) {
     process.exit(1)
   }
   try {
-    const written = await renderFeatureArtifacts(featureDir)
+    const args = process.argv.slice(3)
+    if (args.length && (args.length !== 2 || args[0] !== '--phase' || !['spec', 'plan', 'final'].includes(args[1]))) throw new Error('Use --phase spec|plan|final')
+    const written = await renderFeatureArtifacts(featureDir, { phase: args[1] || 'plan' })
     console.log(JSON.stringify({ ok: true, written }, null, 2))
   } catch (error) {
     console.error(JSON.stringify({ ok: false, code: error.code || 'ERROR', message: error.message, errors: error.errors }, null, 2))

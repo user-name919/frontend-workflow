@@ -1,3 +1,4 @@
+import { inspectionDelivery } from './helpers/acceptance.mjs'
 import assert from 'node:assert/strict'
 import { cp, mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import os from 'node:os'
@@ -187,7 +188,7 @@ test('spec and plan gates require delivery coverage; final needs execution evide
   const specNeg = await evaluateGate(featureDir, 'spec')
   assert.ok(specNeg.errors.some((e) => e.code === 'REQUIREMENT_UNCOVERED'))
 
-  await writeFile(path.join(featureDir, 'artifacts/design/delivery.json'), `${JSON.stringify(validDelivery(), null, 2)}\n`)
+  await writeFile(path.join(featureDir, 'artifacts/design/delivery.json'), `${JSON.stringify(inspectionDelivery(validDelivery()), null, 2)}\n`)
   await writeFile(path.join(featureDir, 'artifacts/design/frontend-spec.md'), '# Spec\n\nFR-1 retry without diagrams.\n')
   const specNoDiagram = await evaluateGate(featureDir, 'spec')
   assert.equal(specNoDiagram.ok, false)
@@ -220,12 +221,12 @@ test('spec and plan gates require delivery coverage; final needs execution evide
   await writeFile(path.join(featureDir, 'artifacts/design/implementation-plan.md'), '# Plan\n\nModify request helper.\n')
 
   // false task path
-  const badDelivery = validDelivery()
+  const badDelivery = inspectionDelivery(validDelivery())
   badDelivery.tasks[0].files = [{ path: 'src/nope.js', operation: 'modify' }]
   await writeFile(path.join(featureDir, 'artifacts/design/delivery.json'), `${JSON.stringify(badDelivery, null, 2)}\n`)
   const planMissingFile = await evaluateGate(featureDir, 'plan')
   assert.ok(planMissingFile.errors.some((e) => e.code === 'MISSING_FILE_EVIDENCE'))
-  await writeFile(path.join(featureDir, 'artifacts/design/delivery.json'), `${JSON.stringify(validDelivery(), null, 2)}\n`)
+  await writeFile(path.join(featureDir, 'artifacts/design/delivery.json'), `${JSON.stringify(inspectionDelivery(validDelivery()), null, 2)}\n`)
 
   const final = await evaluateGate(featureDir, 'final')
   assert.equal(final.ok, false)

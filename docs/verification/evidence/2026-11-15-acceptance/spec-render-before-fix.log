@@ -1,0 +1,38 @@
+{
+  "specValidation": {
+    "ok": true,
+    "errors": []
+  },
+  "renderFailure": {
+    "code": "INVALID_DELIVERY",
+    "errors": [
+      {
+        "code": "REQUIREMENT_WITHOUT_TASK",
+        "message": "included requirement FR-1 has no task",
+        "ruleId": "REQUIREMENT_WITHOUT_TASK",
+        "artifact": "FR-1"
+      },
+      {
+        "code": "ACCEPTANCE_WITHOUT_TASK",
+        "message": "acceptance AC-1 has no task",
+        "ruleId": "ACCEPTANCE_WITHOUT_TASK",
+        "artifact": "AC-1"
+      },
+      {
+        "code": "MISSING_CASES",
+        "ruleId": "MISSING_CASES",
+        "message": "testCases must describe the acceptance scenarios"
+      },
+      {
+        "code": "MISSING_VERIFICATION_INPUTS",
+        "ruleId": "MISSING_VERIFICATION_INPUTS",
+        "message": "verification.inputs must bind original requirements/contracts or their local snapshots"
+      },
+      {
+        "code": "ACCEPTANCE_WITHOUT_CASE",
+        "ruleId": "ACCEPTANCE_WITHOUT_CASE",
+        "message": "AC-1: no case"
+      }
+    ]
+  }
+}

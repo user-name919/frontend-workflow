@@ -27,7 +27,7 @@ The reviewer never edits business code and never dispatches the next implementer
 | request_review | Main agent runs **prepare-review**, then dispatches the reviewer | Sealed packet path |
 | dispatch_implementer / repair | Main agent + `implementer.md` + `prepare-task.mjs` | `record-task-result start` then `accept` |
 | dispatch_reviewer | Fresh sub-agent + **review-delivery** + `review-authority.md` | `record-review adapt`, then `decide`, then `accept` if the workflow report validates |
-| verify | Main agent via `run-verification.mjs` | Records, then `verification.md` |
+| verify | Main agent via `run-verification.mjs` with delivery v2 scope/checkId | Current per-case records, acceptance-results.json and verification.md |
 | await_human / blocked / complete | Stop | Human `approve` / `resume` / done |
 
 After `decide`:

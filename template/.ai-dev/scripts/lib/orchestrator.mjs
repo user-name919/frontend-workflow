@@ -12,6 +12,7 @@ import { capabilitiesFromOverride, resolveCapabilities, toNextCapabilities } fro
 import { reconcileArtifacts } from './consistency.mjs'
 import { gateAuthorized } from './reviews.mjs'
 import { readFeature } from './workspace-store.mjs'
+import { acceptanceReadiness } from './acceptance.mjs'
 
 const STAGE_INPUTS = {
   generate_analysis: [
@@ -47,6 +48,7 @@ function action(type, status, extra = {}) {
     expectedVersion: status?.control?.version ?? null,
     gate: extra.gate ?? null,
     capability: extra.capability || 'assisted',
+    ...(extra.acceptance ? { acceptance: extra.acceptance } : {}),
   }
 }
 
@@ -133,9 +135,16 @@ function depsPassed(status, task) {
   return (task.dependsOn || []).every((dep) => taskRecord(status, dep).status === 'passed')
 }
 
+function verificationRepairLimit(status, scope, taskId = null) {
+  const maxFixRounds = status.policy?.maxFixRounds ?? 3
+  return Object.values(status.runtime?.verificationRepairs || {}).find((item) => item.scope === scope && item.taskId === taskId && item.consecutiveFailures > 0 && item.fixRound >= maxFixRounds)
+}
+
 function implementingAction(status, delivery, capabilities, gates) {
   const cap = capabilityOf(capabilities)
   const tasks = Array.isArray(delivery?.tasks) ? delivery.tasks : []
+  const exhausted = tasks.find((task) => taskRunStatus(status, task.id) !== 'passed' && verificationRepairLimit(status, 'task', task.id))
+  if (exhausted) return action('await_human', status, { taskId: exhausted.id, capability: cap, reason: 'test repair limit reached; report attempts and unresolved evidence before continuing' })
   if (!tasks.length) {
     return action('await_human', status, {
       capability: cap,
@@ -234,7 +243,7 @@ function implementingAction(status, delivery, capabilities, gates) {
  * scope/final 有审核也仍要人；IMPLEMENTING 按任务运行态派发，修未完不派后续任务。
  */
 export function nextAction(input = {}) {
-  const { status, delivery, gates = {}, capabilities = {} } = input
+  const { status, delivery, gates = {}, capabilities = {}, acceptance } = input
   const cap = capabilityOf(capabilities)
   if (!status || typeof status !== 'object') {
     return action('blocked', { control: { version: null } }, { reason: 'missing status', capability: cap })
@@ -282,14 +291,24 @@ export function nextAction(input = {}) {
     case 'IMPLEMENTING':
       return implementingAction(status, delivery, capabilities, gates)
     case 'VERIFYING':
+      if (delivery?.schemaVersion === 2 && delivery.tasks?.some((task) => taskRunStatus(status, task.id) !== 'passed')) return implementingAction(status, delivery, capabilities, gates)
+      if (verificationRepairLimit(status, 'feature')) return action('await_human', status, { capability: cap, acceptance, reason: 'test repair limit reached; report attempts and unresolved evidence before continuing' })
       return action('verify', status, {
         capability: cap,
-        reason: 'run approved verification commands',
+        reason: acceptance?.ok ? 'automated acceptance ready; transition to FINAL_REVIEW' : 'run or repair the missing/current feature checks',
+        acceptance,
         inputPaths: ['artifacts/verification/verification.md'],
       })
     case 'FINAL_REVIEW': {
       const key = 'final'
-      if (!hasReview(status, key, gates) || !reviewFresh(status, key, gates)) {
+      if (delivery?.schemaVersion === 2 && delivery.tasks?.some((task) => taskRunStatus(status, task.id) !== 'passed')) return implementingAction(status, delivery, capabilities, gates)
+      if (verificationRepairLimit(status, 'feature')) return action('await_human', status, { capability: cap, acceptance, reason: 'test repair limit reached; report attempts and unresolved evidence before continuing' })
+      if (acceptance && !acceptance.ok) return action('verify', status, { capability: cap, acceptance, reason: 'current automatic acceptance is not ready; repair or collect evidence in this stage' })
+      const finalReview = status.reviews?.final
+      if (finalReview && finalReview.verdict !== 'pass' && !finalReview.evidenceChanged) {
+        return action(finalReview.reviewDecision === 'ask_human' ? 'await_human' : finalReview.reviewDecision === 'collect_evidence' ? 'verify' : 'repair', status, { capability: cap, gate: 'final', reason: 'resolve final review findings, rerun affected checks and re-review' })
+      }
+      if (!hasReview(status, key, gates) || !reviewFresh(status, key, gates) || finalReview?.evidenceChanged) {
         return action('dispatch_reviewer', status, {
           capability: cap,
           taskId: null,
@@ -358,6 +377,8 @@ export async function computeNext(featureDir, options = {}) {
     delivery,
     gates: options.gates,
     capabilities,
+    acceptance: delivery?.schemaVersion === 2 && ['VERIFYING', 'FINAL_REVIEW'].includes(status.state)
+      ? await acceptanceReadiness(resolved, { includeManual: false }) : undefined,
   })
   return {
     ok: true,

@@ -1,0 +1,237 @@
+{
+  "schemaVersion": 1,
+  "reviewId": "ACCEPTANCE-IMPLEMENTATION",
+  "snapshotDigest": "f7cdcf7c42feae785bd7e76643364436ed2b486936084404290bbeeb16f159a4",
+  "reviewerId": "/root/acceptance_implementation_review",
+  "independence": "independent",
+  "verdict": "pass",
+  "summary": "Independent implementation review passed within the P0–P4 packet scope. All six discovered defects were corrected and rechecked. Independently executed focused protocol regressions passed 12/12 before the last narrow recovery fix and 8/8 against the final recovery code. Browser demo sources and the supplied run index were inspected; browser runs were not independently re-executed. P5 remains outside this review.",
+  "checks": [
+    {
+      "checkId": "C-R1",
+      "result": "pass",
+      "evidence": [
+        {
+          "materialId": "M4",
+          "location": "validateAcceptancePlan; draftDeliveryUpgrade",
+          "observation": "AC/case/method/environment/check references and required scopes are validated. Upgrade drafts retain command identities while leaving unknown cases/environments incomplete."
+        },
+        {
+          "materialId": "M5",
+          "location": "acceptanceReadiness",
+          "observation": "Delivery v1 returns ACCEPTANCE_MIGRATION_REQUIRED and cannot acquire v2 acceptance through historical runs."
+        },
+        {
+          "materialId": "M46",
+          "location": "v2 rejects lost ACs, invented methods, unscheduled cases and engineering-as-acceptance",
+          "observation": "This reviewer executed the regression successfully in the 12-test focused run."
+        }
+      ]
+    },
+    {
+      "checkId": "C-R2",
+      "result": "pass",
+      "evidence": [
+        {
+          "materialId": "M11",
+          "location": "startTask lines 128–136; acceptTaskResult lines 174–185",
+          "observation": "A new attempt clears previous attempt results and review state; DONE and idempotent replays validate current attempt evidence before admission."
+        },
+        {
+          "materialId": "M9",
+          "location": "evaluateGate final task loop, line 283",
+          "observation": "V2 final admission now requires both task status=passed and reviewStatus=passed, closing the running-repair counterexample."
+        },
+        {
+          "materialId": "M10",
+          "location": "transitionFeature lines 218–223; recordHumanApproval line 383",
+          "observation": "Direct final transition, approval and completion paths invoke final readiness checks."
+        },
+        {
+          "materialId": "M46",
+          "location": "CLI cannot skip acceptance; DONE waits for every task check",
+          "observation": "Independently executed controller and task-admission regressions passed."
+        }
+      ]
+    },
+    {
+      "checkId": "C-R3",
+      "result": "pass",
+      "evidence": [
+        {
+          "materialId": "M7",
+          "location": "readPlaywrightReport lines 24–91",
+          "observation": "Required case matches include stable ID, source file and browser project. Clean results reject skips/retries/flaky/expected failures; observed environment, mock hits and live-response substitution are checked."
+        },
+        {
+          "materialId": "M5",
+          "location": "validateVerificationRecord",
+          "observation": "Consumption rechecks raw-report and attachment fingerprints and compares normalized cases against the raw report."
+        },
+        {
+          "materialId": "M46",
+          "location": "zero-exit without fresh report or with only skipped tests never proves acceptance",
+          "observation": "The independently executed negative protocol regression passed."
+        }
+      ]
+    },
+    {
+      "checkId": "C-R4",
+      "result": "pass",
+      "evidence": [
+        {
+          "materialId": "M6",
+          "location": "runVerification; registerRun; recoverVerification",
+          "observation": "Inputs are captured before execution, verified after execution, and complete records are atomically written before ledger references. Recovery validates durable evidence without rerunning commands."
+        },
+        {
+          "materialId": "M5",
+          "location": "validateVerificationRecord; acceptanceReadiness",
+          "observation": "Consumption verifies the input snapshot and evidence bytes and selects the latest matching scoped run; a newer failure/running record cannot be replaced by an older success."
+        },
+        {
+          "materialId": "M50",
+          "location": "durable task result after a ledger interruption is accepted without replaying checks",
+          "observation": "The final independent run passed this recovery regression and the existing task replay/interruption cases."
+        }
+      ]
+    },
+    {
+      "checkId": "C-R5",
+      "result": "pass",
+      "evidence": [
+        {
+          "materialId": "M5",
+          "location": "recordCaseEvidence; acceptanceReadiness",
+          "observation": "Manual evidence needs a real confirmation reference and current candidate snapshot; recording it clears final approval and invalidates final review eligibility."
+        },
+        {
+          "materialId": "M9",
+          "location": "evaluateGate final, lines 268–277",
+          "observation": "Automatic readiness may omit pending manual cases at entry, while final approval/completion require complete case evidence and a fresh independent review."
+        },
+        {
+          "materialId": "M46",
+          "location": "CLI cannot skip acceptance; manual evidence is separate, candidate-bound, and never an approval",
+          "observation": "These protocol simulations passed when independently executed; they are not actual human approvals."
+        }
+      ]
+    },
+    {
+      "checkId": "C-R6",
+      "result": "pass",
+      "evidence": [
+        {
+          "materialId": "M14",
+          "location": "mapChecks lines 53–93",
+          "observation": "Missing direct rule mappings remain not_run and no unrelated first pass is borrowed."
+        },
+        {
+          "materialId": "M2",
+          "location": "verifyPacket / validateReport v2 case checks",
+          "observation": "V2 packet checks require case coverage/method alignment and passing test reports bind case, run, record and output material references."
+        },
+        {
+          "materialId": "M16",
+          "location": "execute and variants loop",
+          "observation": "The driver accepts a fault detection only when the named case fails at the designated assertion; build/startup failure alone cannot count."
+        },
+        {
+          "materialId": "M17",
+          "location": "TC-RECOVER; TC-REPEAT; TC-TIMEOUT",
+          "observation": "Static inspection confirms actual UI actions, fresh requests/data, pending request counts and application timeout/recovery assertions. The demo driver requires the designated case and assertion for each fault and restores positive controls."
+        },
+        {
+          "materialId": "M47",
+          "location": "runs and currentRunnerRecheck",
+          "observation": "The implementer-supplied index records nine designated fault detections and passing restored/mock/live runs. This was inspected as supplied evidence, not claimed as independently executed browser testing."
+        }
+      ]
+    },
+    {
+      "checkId": "C-R7",
+      "result": "pass",
+      "evidence": [
+        {
+          "materialId": "M12",
+          "location": "verificationRepairLimit; VERIFYING/FINAL_REVIEW lines 293–309",
+          "observation": "Unfinished tasks take precedence over whole-feature verification/final review; exhausted automatic test repair budgets produce await_human."
+        },
+        {
+          "materialId": "M13",
+          "location": "acceptReview lines 306–315 and 349–356",
+          "observation": "Repair counts use the persisted task/review maximum and survive new request IDs; duplicate accepted reports do not spend another round."
+        },
+        {
+          "materialId": "M6",
+          "location": "registerRun lines 36–43",
+          "observation": "Terminal test attempts persist consecutive failure/fix-round counts, covering repairs with no intervening review."
+        },
+        {
+          "materialId": "M11",
+          "location": "startTask lines 128–136; acceptTaskResult lines 182–185 and 216–218",
+          "observation": "Different attempts retain only persistent repair accounting. Old result/review/output fields are cleared; a durable result is idempotent only after its ledger reference exists."
+        },
+        {
+          "materialId": "M50",
+          "location": "8 tests, 8 pass, 0 fail",
+          "observation": "Final independent execution covers repair routing, persistent task/final/test budgets, stopped repair recovery, durable result acceptance, replay and interruption behavior."
+        }
+      ]
+    },
+    {
+      "checkId": "C-R8",
+      "result": "pass",
+      "evidence": [
+        {
+          "materialId": "M8",
+          "location": "renderDelivery lines 320–345",
+          "observation": "The renderer accepts an explicit phase and renders the spec AC view before any plan-only cases/checks/environments are required."
+        },
+        {
+          "materialId": "M38",
+          "location": "renderFeatureArtifacts line 88; CLI lines 104–107",
+          "observation": "The requested phase reaches renderDelivery and is available through --phase spec|plan|final."
+        },
+        {
+          "materialId": "M46",
+          "location": "spec renders source-backed ACs before plan cases or test implementations exist",
+          "observation": "Independently executed regression confirms spec rendering succeeds while incomplete plan rendering remains rejected."
+        }
+      ]
+    }
+  ],
+  "findings": [],
+  "resolvedFindingIds": [
+    "F1",
+    "F2",
+    "F3",
+    "F4",
+    "F5",
+    "F6"
+  ],
+  "independentExecutions": [
+    {
+      "command": "TMPDIR=/private/tmp node --test test/acceptance-repair.test.mjs test/acceptance-control.test.mjs test/acceptance.test.mjs",
+      "exitCode": 0,
+      "outputMaterialId": "M46",
+      "passed": 12,
+      "failed": 0,
+      "versionNote": "Before the final narrow task recovery correction; affected recovery paths were rerun below."
+    },
+    {
+      "command": "TMPDIR=/private/tmp node --test test/acceptance-repair.test.mjs test/task-runs.test.mjs",
+      "exitCode": 0,
+      "outputMaterialId": "M50",
+      "passed": 8,
+      "failed": 0,
+      "versionNote": "Final sealed implementation."
+    }
+  ],
+  "limitations": [
+    "This is an independent implementation review of workflow tooling, not a business feature delivery-v2 acceptance packet or final human approval.",
+    "Browser behavior was reviewed through source and supplied demo evidence; this reviewer did not run browsers or access production.",
+    "The full-suite log already in the packet predates the final narrow recovery fix and is not claimed as a final-version full-suite execution by this reviewer.",
+    "P5 needs a user-selected real business repository and is not claimed complete."
+  ]
+}

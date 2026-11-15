@@ -1,248 +1,189 @@
-/**
- * 解决什么问题：验证命令必须真跑，不能编造 passed。
- * 通过什么方式解决：只用 execFile(command, args)，禁止 shell 串；按真实 exit/超时/缺宿主写记录。
- * 触发时机：VERIFYING 或任务 verify 列表。
- * 被谁控制触发：run-verification 脚本。
- */
-
+/** Execute approved checks and persist source-bound, per-case evidence. No model calls. */
 import { execFile as execFileCallback } from 'node:child_process'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { mkdir, readFile, realpath, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
-
-import { captureSnapshot, verifySnapshot, readSnapshot } from './snapshots.mjs'
+import { readSnapshot, verifySnapshot } from './snapshots.mjs'
+import { validateDelivery } from './delivery.mjs'
 import { mutateFeature, readFeature, StoreError } from './workspace-store.mjs'
 import { currentTraceId, startActivity } from './monitor-events.mjs'
+import { captureVerificationSnapshot, digest, jsonBytes, loadAcceptance, refreshAcceptanceResults, validateVerificationRecord, writeJsonAtomic } from './acceptance.mjs'
+import { readEvidenceFile, readPlaywrightReport } from './verification-report.mjs'
 
 const execFile = promisify(execFileCallback)
-const DEFAULT_TIMEOUT_MS = 120000
 
-function isInside(root, candidate) {
-  const relative = path.relative(root, candidate)
-  return relative && !relative.startsWith('..') && !path.isAbsolute(relative)
-}
-
-async function readJson(featureDir, relative) {
-  return JSON.parse(await readFile(path.join(featureDir, relative), 'utf8'))
-}
-
-function resolveCommand(command, projectRoot) {
-  if (!command || typeof command !== 'string') {
-    throw new StoreError('INVALID_COMMAND', 'verify command must be a string')
-  }
-  if (command.includes(' ') || command.includes('|') || command.includes('&&') || command.includes(';')) {
-    throw new StoreError('SHELL_FORBIDDEN', 'Do not pass a shell string; use command + args')
-  }
-  if (path.isAbsolute(command)) return command
-  return command
-}
-
-/**
- * 用已落盘记录渲染 verification.md。没有记录就写 unverified，不写通过。
- */
 export function renderVerificationMarkdown(records) {
-  const rows = records.length
-    ? records.map((item) => `| \`${item.command} ${(item.args || []).join(' ')}\` | ${item.status} | exit=${item.exitCode}; ${item.id} |`)
-    : ['| (none recorded) | unverified | run-verification.mjs has not produced records |']
-  return [
-    '# Verification',
-    '',
-    '## Automated checks',
-    '',
-    '| Command | Result | Evidence/notes |',
-    '| --- | --- | --- |',
-    ...rows,
-    '',
-    '## Manual checks',
-    '',
-    '- Recorded only when a human actually confirmed them.',
-    '',
-    '## Unverified items',
-    '',
-    ...records.filter((item) => item.status === 'unverified').map((item) => `- ${item.id}: ${item.summary || 'environment or script missing'}`),
-    records.some((item) => item.status === 'unverified') ? '' : '- none recorded',
-    '',
-  ].join('\n')
+  return ['# Verification (legacy command evidence)', '', '| Command | Result | Run |', '| --- | --- | --- |',
+    ...records.map((record) => `| ${record.command} | ${record.status} | ${record.id} |`), '',
+    'These records do not establish v2 requirement acceptance. Upgrade the delivery and rerun.', ''].join('\n')
 }
 
-/**
- * 对 delivery.verify[i] 真 execFile。缺命令标 unverified；非零/超时/源码中途变化标 failed。
- * 禁止把整段 shell 当 command。结果写入 revisions 与账本，并刷新 verification.md。
- */
+async function registerRun(featureDir, record, expectedVersion, actor) {
+  const recordRef = `revisions/verifications/${record.id}/record.json`
+  // Complete bytes are durable before the ledger references them. A failed CAS is recoverable.
+  await writeJsonAtomic(path.join(featureDir, recordRef), record)
+  return mutateFeature(featureDir, {
+    expectedVersion,
+    event: { type: 'verification.run', actor, data: { id: record.id, taskId: record.taskId, checkId: record.checkId, status: record.status, exitCode: record.exitCode } },
+  }, (draft) => {
+    const previousRun = draft.runtime.verifications?.[record.id]
+    draft.runtime.verifications = { ...draft.runtime.verifications, [record.id]: {
+      schemaVersion: record.schemaVersion, id: record.id, scope: record.scope, taskId: record.taskId,
+      attemptId: record.attemptId, checkId: record.checkId, sequence: record.sequence,
+      status: record.status, exitCode: record.exitCode, recordRef, recordDigest: digest(jsonBytes(record)),
+    } }
+    if (record.schemaVersion === 2 && previousRun?.status === 'running' && record.status !== 'running') {
+      const key = `${record.scope}:${record.taskId || 'feature'}:${record.checkId}`
+      const previousFailures = draft.runtime.verificationRepairs?.[key]?.consecutiveFailures || 0
+      const consecutiveFailures = record.status === 'passed' ? 0 : previousFailures + 1
+      draft.runtime.verificationRepairs = { ...draft.runtime.verificationRepairs, [key]: {
+        scope: record.scope, taskId: record.taskId, checkId: record.checkId,
+        consecutiveFailures, fixRound: Math.max(0, consecutiveFailures - 1), lastRunId: record.id,
+      } }
+    }
+    if (record.taskId) {
+      const current = draft.runtime.taskResults[record.taskId] || { status: 'pending' }
+      draft.runtime.taskResults[record.taskId] = { ...current, verificationIds: [...new Set([...(current.verificationIds || []), record.id])] }
+    }
+    if (record.schemaVersion === 2 && record.scope === 'feature') {
+      draft.approvals.final = null
+      if (draft.reviews?.final) draft.reviews.final = { ...draft.reviews.final, evidenceChanged: true }
+    }
+  })
+}
+
 export async function runVerification(featureDir, input = {}) {
   const resolved = path.resolve(featureDir)
-  const { taskId, commandIndex, expectedSnapshotId, actor = 'coordinator' } = input
-  const timeoutMs = Number.isInteger(input.timeoutMs) ? input.timeoutMs : DEFAULT_TIMEOUT_MS
-  if (!taskId || !Number.isInteger(commandIndex)) {
-    throw new StoreError('INVALID_REQUEST', 'taskId and commandIndex are required')
+  const { status, intake, delivery } = await loadAcceptance(resolved)
+  const v2 = delivery.schemaVersion === 2
+  const actor = input.actor || 'coordinator'
+  const taskId = input.taskId || null
+  const scope = input.scope || (taskId ? 'task' : 'feature')
+  const task = delivery.tasks?.find((item) => item.id === taskId)
+  let check
+  if (v2) {
+    const validation = validateDelivery(intake, delivery, { phase: 'plan' })
+    if (!validation.ok) throw new StoreError('INVALID_DELIVERY', validation.errors.map((item) => item.message).join('; '))
+    if (!['task', 'feature'].includes(scope) || (scope === 'feature' && taskId)) throw new StoreError('INVALID_SCOPE', 'scope must be task or feature; feature has no taskId')
+    check = delivery.verification.checks.find((item) => item.id === input.checkId)
+    const allowed = scope === 'task' ? task?.verifyIds : delivery.verification.finalCheckIds
+    if (!check || !allowed?.includes(check.id)) throw new StoreError('UNKNOWN_CHECK', 'Check is not scheduled in this scope')
+    if (scope === 'task' && (!input.attemptId || status.runtime.taskResults?.[taskId]?.status !== 'running' || status.runtime.taskResults[taskId].attemptId !== input.attemptId)) throw new StoreError('STALE_ATTEMPT', 'Task verification requires the current running attemptId')
+    if (scope === 'feature' && !['VERIFYING', 'FINAL_REVIEW'].includes(status.state)) throw new StoreError('INVALID_STATE', 'Final candidate checks run in VERIFYING or FINAL_REVIEW')
+    const running = Object.values(status.runtime.verifications || {}).find((ref) => ref.status === 'running' && ref.scope === scope && ref.taskId === taskId && ref.checkId === check.id)
+    if (running) throw new StoreError('VERIFICATION_RUNNING', `Inspect/recover ${running.id} before retrying`)
+  } else {
+    if (!task || !Number.isInteger(input.commandIndex)) throw new StoreError('INVALID_REQUEST', 'Legacy runs require taskId and commandIndex')
+    check = task.verify?.[input.commandIndex]
+    if (!check) throw new StoreError('UNKNOWN_COMMAND', `Unknown verify[${input.commandIndex}]`)
+    check = { ...check, id: `legacy-${taskId}-${input.commandIndex}`, kind: 'engineering' }
   }
-
-  const status = await readFeature(resolved)
-  const projectRoot = status.project?.root
-  if (!projectRoot) throw new StoreError('MISSING_PROJECT', 'status.project.root is required')
-
-  const delivery = await readJson(resolved, 'artifacts/design/delivery.json')
-  const task = (delivery.tasks || []).find((item) => item.id === taskId)
-  if (!task) throw new StoreError('UNKNOWN_TASK', `Unknown task ${taskId}`)
-  const spec = task.verify?.[commandIndex]
-  if (!spec) throw new StoreError('UNKNOWN_COMMAND', `No verify[${commandIndex}] on ${taskId}`)
-
-  if (expectedSnapshotId) {
-    const snapshot = await readSnapshot(resolved, expectedSnapshotId)
-    const freshness = await verifySnapshot(resolved, snapshot)
-    if (!freshness.fresh) {
-      throw new StoreError('STALE_SNAPSHOT', 'expectedSnapshotId is no longer fresh')
-    }
-  }
-
-  // 真 execFile，禁止 shell 串，不编造 passed。
-  const command = resolveCommand(spec.command, projectRoot)
-  const args = Array.isArray(spec.args) ? spec.args : []
-  const cwd = spec.cwd && spec.cwd !== '.' ? path.resolve(projectRoot, spec.cwd) : projectRoot
-  if (!isInside(projectRoot, cwd) && path.resolve(cwd) !== path.resolve(projectRoot)) {
-    throw new StoreError('PATH_ESCAPE', 'verify cwd must stay inside the project')
-  }
-
-  const startedAt = new Date().toISOString()
-  const startedMs = Date.now()
-  const id = `ver-${taskId}-${commandIndex}-${startedMs}`
+  if (Number.isInteger(input.expectedVersion) && input.expectedVersion !== status.control.version) throw new StoreError('VERSION_CONFLICT', 'Reload status before running verification')
+  if (input.expectedSnapshotId && !(await verifySnapshot(resolved, await readSnapshot(resolved, input.expectedSnapshotId))).fresh) throw new StoreError('STALE_SNAPSHOT', 'Caller snapshot is no longer fresh')
+  const command = check.command
+  if (typeof command !== 'string' || !command || /[|;&\n\r]/.test(command) || (!path.isAbsolute(command) && command.includes(' '))) throw new StoreError('SHELL_FORBIDDEN', 'Use command + args; shell strings are forbidden')
+  const args = check.args || []
+  const projectRoot = await realpath(status.project.root)
+  const cwd = await realpath(path.resolve(projectRoot, check.cwd || '.'))
+  if (cwd !== projectRoot && !cwd.startsWith(`${projectRoot}${path.sep}`)) throw new StoreError('PATH_ESCAPE', 'Check cwd escapes project')
+  const environment = v2 ? delivery.verification.environments.find((env) => env.id === check.environmentId) : null
+  const before = await captureVerificationSnapshot(resolved, delivery, { taskId })
+  const id = `ver-${randomUUID()}`
   const outDir = path.join(resolved, 'revisions/verifications', id)
   await mkdir(outDir, { recursive: true })
-
-  let exitCode = null
-  let timedOut = false
+  const record = {
+    schemaVersion: v2 ? 2 : 1, id, sequence: status.control.version + 1, scope, taskId,
+    attemptId: input.attemptId || null, checkId: check.id, environmentId: environment?.id || null,
+    command, args, cwd, startedAt: new Date().toISOString(), endedAt: null,
+    status: 'running', exitCode: null, timedOut: false, summary: '', cases: [], files: [],
+    inputSnapshotId: before.id, outputSnapshotId: null,
+    snapshotDigest: digest(await readFile(path.join(resolved, 'revisions/snapshots', `${before.id}.json`))),
+    stdoutPath: `revisions/verifications/${id}/stdout.log`, stderrPath: `revisions/verifications/${id}/stderr.log`,
+    rawReportPath: v2 && check.kind === 'acceptance' ? `revisions/verifications/${id}/raw-report.json` : null,
+  }
+  const runningStatus = await registerRun(resolved, record, status.control.version, actor)
+  const activity = startActivity({ kind: 'command', component: 'verification-command', command: path.basename(command), projectRoot, featureDir: resolved, taskId, parentId: currentTraceId() })
   let stdout = ''
   let stderr = ''
-  let statusLabel = 'failed'
-  let summary = ''
   let missingHost = false
-
-  // Store only a safe command label, never arbitrary arguments or output.
-  const executable = path.basename(command)
-  const safeArgument = (value) => typeof value === 'string' && /^[a-zA-Z0-9:_-]{1,60}$/.test(value)
-  const commandLabel = ['npm', 'pnpm', 'yarn', 'bun'].includes(executable) && safeArgument(args[0])
-    ? [executable, args[0], ...(args[0] === 'run' && safeArgument(args[1]) ? [args[1]] : [])].join(' ')
-    : executable
-  const commandTrace = startActivity({
-    kind: 'command', component: 'verification-command', command: commandLabel,
-    projectRoot, featureDir: resolved, taskId, parentId: currentTraceId(),
-  })
   try {
     const result = await execFile(command, args, {
-      cwd,
-      timeout: timeoutMs,
-      maxBuffer: 2 * 1024 * 1024,
-      encoding: 'utf8',
+      cwd, timeout: Number.isInteger(input.timeoutMs) && input.timeoutMs > 0 ? input.timeoutMs : 120000,
+      maxBuffer: 20 * 1024 * 1024, encoding: 'utf8',
+      env: { ...process.env, ...(v2 ? {
+        WORKFLOW_VERIFICATION_DIR: outDir, WORKFLOW_ENVIRONMENT_ID: environment.id,
+        WORKFLOW_BASE_URL: environment.baseURL || '',
+        PLAYWRIGHT_JSON_OUTPUT_FILE: path.join(outDir, 'raw-report.json'),
+        PLAYWRIGHT_HTML_OUTPUT_DIR: path.join(outDir, 'html'),
+      } : {}) },
     })
     stdout = result.stdout || ''
     stderr = result.stderr || ''
-    exitCode = 0
+    record.exitCode = 0
   } catch (error) {
     stdout = error.stdout || ''
     stderr = error.stderr || error.message || ''
-    timedOut = Boolean(error.killed) || /ETIMEOUT|timed out/i.test(error.message || '')
-    if (error.code === 'ENOENT') {
-      missingHost = true
-      summary = 'command or host environment missing'
-      exitCode = null
-    } else {
-      exitCode = typeof error.code === 'number' ? error.code : 1
-      summary = timedOut ? 'timed out' : 'non-zero exit'
-    }
+    record.timedOut = Boolean(error.killed) || /ETIMEOUT|timed out/i.test(error.message || '')
+    missingHost = error.code === 'ENOENT'
+    record.exitCode = missingHost ? null : typeof error.code === 'number' ? error.code : 1
+    record.summary = missingHost ? 'command/host missing' : record.timedOut ? 'timed out' : 'non-zero exit'
   } finally {
-    commandTrace.finish(exitCode, exitCode === 0 ? 'completed' : 'failed')
+    activity.finish(record.exitCode, record.exitCode === 0 ? 'completed' : 'failed')
   }
-
-  const endedAt = new Date().toISOString()
-  const stdoutPath = path.join(outDir, 'stdout.log')
-  const stderrPath = path.join(outDir, 'stderr.log')
-  await writeFile(stdoutPath, stdout)
-  await writeFile(stderrPath, stderr)
-
-  let outputSnapshot = null
-  let sourceChanged = false
-  if (expectedSnapshotId) {
-    const snapshot = await readSnapshot(resolved, expectedSnapshotId)
-    const after = await verifySnapshot(resolved, snapshot)
-    sourceChanged = !after.fresh
-    outputSnapshot = { id: snapshot.id, fresh: after.fresh, changes: after.changes }
-  } else {
-    outputSnapshot = await captureSnapshot(resolved, {
-      gate: 'task',
-      taskId,
-      inputs: (task.files || []).map((file) => ({ space: 'project', path: file.path, freshness: 'live' })),
-      includeProjectDigest: true,
-    })
-  }
-
-  if (missingHost) statusLabel = 'unverified'
-  else if (timedOut || exitCode !== 0 || sourceChanged) statusLabel = 'failed'
-  else statusLabel = 'passed'
-
-  const record = {
-    id,
-    taskId,
-    command,
-    args,
-    cwd,
-    startedAt,
-    endedAt,
-    exitCode,
-    timedOut,
-    stdoutPath: path.relative(resolved, stdoutPath),
-    stderrPath: path.relative(resolved, stderrPath),
-    inputSnapshotId: expectedSnapshotId || null,
-    outputSnapshotId: outputSnapshot?.id || expectedSnapshotId || null,
-    status: statusLabel,
-    summary: summary || (sourceChanged ? 'source changed during verification' : ''),
-  }
-
-  const next = await mutateFeature(
-    resolved,
-    {
-      expectedVersion: status.control.version,
-      event: {
-        type: 'verification.run',
-        actor,
-        data: { id, taskId, status: record.status, exitCode },
-      },
-    },
-    (draft) => {
-      draft.runtime = draft.runtime || { activeTaskId: null, attempts: {}, taskResults: {}, verifications: {} }
-      draft.runtime.verifications = {
-        ...(draft.runtime.verifications || {}),
-        [id]: {
-          id,
-          taskId,
-          status: record.status,
-          exitCode,
-          recordRef: path.relative(resolved, path.join(outDir, 'record.json')),
-        },
-      }
-      if (draft.runtime.taskResults?.[taskId]) {
-        const ids = new Set(draft.runtime.taskResults[taskId].verificationIds || [])
-        ids.add(id)
-        draft.runtime.taskResults[taskId].verificationIds = [...ids]
-      } else {
-        draft.runtime.taskResults = {
-          ...(draft.runtime.taskResults || {}),
-          [taskId]: { status: 'pending', verificationIds: [id] },
-        }
-      }
-    },
-  )
-
-  await writeFile(path.join(outDir, 'record.json'), `${JSON.stringify(record, null, 2)}\n`)
-  const records = Object.values(next.runtime.verifications || {})
-  const detailed = []
-  for (const item of records) {
+  await writeFile(path.join(resolved, record.stdoutPath), stdout)
+  await writeFile(path.join(resolved, record.stderrPath), stderr)
+  record.status = missingHost ? 'unverified' : record.exitCode === 0 && !record.timedOut ? 'passed' : 'failed'
+  const evidencePaths = [record.stdoutPath, record.stderrPath]
+  if (record.rawReportPath) {
     try {
-      detailed.push(JSON.parse(await readFile(path.join(resolved, item.recordRef), 'utf8')))
-    } catch {
-      detailed.push({ ...item, command: '(missing record)', args: [] })
+      const report = JSON.parse(await readEvidenceFile(resolved, record.rawReportPath))
+      const parsed = await readPlaywrightReport(report, { check, cases: delivery.testCases, environment, projectRoot, outputDir: outDir })
+      record.cases = parsed.cases
+      record.reportErrors = parsed.errors
+      evidencePaths.push(record.rawReportPath, ...parsed.evidencePaths.map((file) => path.relative(resolved, path.join(outDir, file))))
+      if (parsed.errors.length) {
+        record.status = parsed.cases.some((tc) => tc.status === 'flaky') ? 'flaky' : 'failed'
+        record.summary = parsed.errors.join('; ')
+      }
+    } catch (error) {
+      record.status = 'unverified'
+      record.summary = `Missing/invalid fresh report: ${error.message}`
     }
   }
-  await writeFile(path.join(resolved, 'artifacts/verification/verification.md'), renderVerificationMarkdown(detailed))
-
+  for (const file of [...new Set(evidencePaths)]) record.files.push({ path: file, sha256: digest(await readEvidenceFile(resolved, file)) })
+  const after = await verifySnapshot(resolved, before)
+  record.outputSnapshotId = before.id
+  if (!after.fresh) {
+    record.status = 'failed'
+    record.summary = 'source or verification inputs changed during execution'
+    record.changes = after.changes
+  }
+  record.endedAt = new Date().toISOString()
+  const next = await registerRun(resolved, record, runningStatus.control.version, actor)
+  if (v2) await refreshAcceptanceResults(resolved)
+  else {
+    const records = await Promise.all(Object.values(next.runtime.verifications).map(async (ref) => JSON.parse(await readFile(path.join(resolved, ref.recordRef), 'utf8'))))
+    await writeFile(path.join(resolved, 'artifacts/verification/verification.md'), renderVerificationMarkdown(records))
+  }
   return record
+}
+
+/** Recover a durable completed run after CAS failure, or mark a stopped run interrupted. */
+export async function recoverVerification(featureDir, input) {
+  const { status, delivery } = await loadAcceptance(featureDir)
+  if (input.confirmWorkerStopped !== true || !input.actor || !Number.isInteger(input.expectedVersion)) throw new StoreError('INVALID_REQUEST', 'Confirm the test process stopped and supply actor/expectedVersion')
+  if (status.control.version !== input.expectedVersion) throw new StoreError('VERSION_CONFLICT', 'Reload status')
+  const ref = status.runtime.verifications?.[input.runId]
+  if (!ref || ref.status !== 'running') throw new StoreError('NO_RUNNING_VERIFICATION', 'No running verification with this id')
+  const validation = await validateVerificationRecord(featureDir, ref, delivery, { recover: true })
+  const record = validation.record || JSON.parse(await readEvidenceFile(featureDir, ref.recordRef))
+  if (!validation.ok) {
+    record.status = 'interrupted'
+    record.summary = `Recovered without pass: ${validation.reason}`
+    record.endedAt = new Date().toISOString()
+  }
+  const next = await registerRun(featureDir, record, input.expectedVersion, input.actor)
+  await refreshAcceptanceResults(featureDir)
+  return { status: next, record }
 }

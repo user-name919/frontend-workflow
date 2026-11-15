@@ -11,6 +11,7 @@ import path from 'node:path'
 
 import { nextAction } from './orchestrator.mjs'
 import { mutateFeature, readFeature, StoreError } from './workspace-store.mjs'
+import { assertAcceptanceReady } from './acceptance.mjs'
 
 const RESULT_STATUSES = new Set(['DONE', 'DONE_WITH_CONCERNS', 'NEEDS_CONTEXT', 'BLOCKED'])
 const BUSINESS_CONCERN = /conflict|ownership|契约|合同|产品未决|ambiguity|职责/i
@@ -125,11 +126,14 @@ export async function startTask(featureDir, input = {}) {
         current: attemptId,
       }
       draft.runtime.taskResults[taskId] = {
-        ...(already || {}),
+        ...(already?.attemptId === attemptId ? already : { fixRound: already?.fixRound || 0 }),
         status: 'running',
+        reviewStatus: null,
         attemptId,
         hostRunId,
       }
+      draft.approvals.final = null
+      if (draft.reviews?.final) draft.reviews.final = { ...draft.reviews.final, evidenceChanged: true }
     },
   )
   const duplicate =
@@ -172,7 +176,10 @@ export async function acceptTaskResult(featureDir, report, options = {}) {
   if (current && current !== report.attemptId) {
     throw new StoreError('STALE_ATTEMPT', `Attempt ${report.attemptId} is not current (${current})`)
   }
-  if (storedResult && sameReport(storedResult, report)) {
+  if (mapResultStatus(report) === 'review_pending' && !(report.status === 'DONE_WITH_CONCERNS' && concernsNeedHuman(report))) {
+    await assertAcceptanceReady(resolved, { scope: 'task', taskId: report.taskId, attemptId: report.attemptId, verificationIds: report.verificationIds })
+  }
+  if (storedResult && sameReport(storedResult, report) && status.runtime?.taskResults?.[report.taskId]?.resultRef === path.relative(resolved, path.join(dir, 'result.json'))) {
     return { status, idempotent: true }
   }
   if (storedResult && !sameReport(storedResult, report)) {
@@ -208,6 +215,7 @@ export async function acceptTaskResult(featureDir, report, options = {}) {
       draft.runtime.activeTaskId = null
       draft.runtime.taskResults[report.taskId] = {
         status: runStatus,
+        fixRound: draft.runtime.taskResults[report.taskId]?.fixRound || 0,
         attemptId: report.attemptId,
         hostRunId: report.hostRunId,
         summary: report.summary,

@@ -1,0 +1,5 @@
+{
+  "first": { "name": "Ada", "revision": 1 },
+  "recovered": { "name": "Grace", "revision": 2 },
+  "businessFailure": { "error": { "code": "PROFILE_UNAVAILABLE", "message": "资料暂不可用" } }
+}

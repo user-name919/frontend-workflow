@@ -1,0 +1,655 @@
+{
+  "schemaVersion": 1,
+  "reviewId": "ACCEPTANCE-IMPLEMENTATION",
+  "stage": "task",
+  "implementerId": "root-implementation",
+  "materials": [
+    {
+      "id": "M0",
+      "path": "docs/plans/2026-11-15-requirement-acceptance-testing.md",
+      "role": "requirement"
+    },
+    {
+      "id": "M1",
+      "path": ".agents/skills/acceptance-testing/SKILL.md",
+      "role": "implementation"
+    },
+    {
+      "id": "M2",
+      "path": ".agents/skills/prepare-review/scripts/review-contract.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M3",
+      "path": "template/.ai-dev/acceptance-testing.md",
+      "role": "implementation"
+    },
+    {
+      "id": "M4",
+      "path": "template/.ai-dev/scripts/lib/acceptance-plan.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M5",
+      "path": "template/.ai-dev/scripts/lib/acceptance.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M6",
+      "path": "template/.ai-dev/scripts/lib/verification.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M7",
+      "path": "template/.ai-dev/scripts/lib/verification-report.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M8",
+      "path": "template/.ai-dev/scripts/lib/delivery.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M9",
+      "path": "template/.ai-dev/scripts/lib/gates.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M10",
+      "path": "template/.ai-dev/scripts/lib/workflow-state.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M11",
+      "path": "template/.ai-dev/scripts/lib/task-runs.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M12",
+      "path": "template/.ai-dev/scripts/lib/orchestrator.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M13",
+      "path": "template/.ai-dev/scripts/lib/reviews.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M14",
+      "path": "template/.ai-dev/scripts/lib/review-adapter.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M15",
+      "path": "template/.ai-dev/scripts/lib/snapshots.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M16",
+      "path": "eval/acceptance/run-demo.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M17",
+      "path": "eval/acceptance/retry-state/browser/retry.spec.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M18",
+      "path": "eval/acceptance/retry-state/browser/live.spec.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M19",
+      "path": "test/acceptance-control.test.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M20",
+      "path": "test/acceptance.test.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M21",
+      "path": "template/.ai-dev/scripts/workflow-control.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M22",
+      "path": "template/.ai-dev/scripts/run-verification.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M23",
+      "path": "template/.ai-dev/scripts/prepare-task.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M24",
+      "path": "template/.ai-dev/scripts/import-artifacts.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M25",
+      "path": "template/.ai-dev/scripts/lib/consistency.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M26",
+      "path": "template/.ai-dev/scripts/update-consistency.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M27",
+      "path": "template/.ai-dev/artifact-graph.json",
+      "role": "implementation"
+    },
+    {
+      "id": "M28",
+      "path": "template/.ai-dev/templates/artifacts/design/delivery.json",
+      "role": "implementation"
+    },
+    {
+      "id": "M29",
+      "path": "eval/acceptance/retry-state/server.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M30",
+      "path": "eval/acceptance/retry-state/src/app.js",
+      "role": "implementation"
+    },
+    {
+      "id": "M31",
+      "path": "eval/acceptance/retry-state/src/request.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M32",
+      "path": "eval/acceptance/retry-state/playwright.config.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M33",
+      "path": "eval/acceptance/retry-state/contract.json",
+      "role": "implementation"
+    },
+    {
+      "id": "M34",
+      "path": "eval/acceptance/retry-state/requirements.md",
+      "role": "implementation"
+    },
+    {
+      "id": "M35",
+      "path": "test/verification-report.test.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M36",
+      "path": "test/helpers/acceptance.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M37",
+      "path": "test/acceptance-review-contract.test.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M38",
+      "path": "template/.ai-dev/scripts/render-artifacts.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M39",
+      "path": "test/acceptance-repair.test.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M40",
+      "path": "docs/verification/evidence/2026-11-15-acceptance/independent-findings.json",
+      "role": "verification"
+    },
+    {
+      "id": "M41",
+      "path": "docs/verification/evidence/2026-11-15-acceptance/lifecycle-before-fix.log",
+      "role": "verification"
+    },
+    {
+      "id": "M42",
+      "path": "docs/verification/evidence/2026-11-15-acceptance/spec-render-before-fix.log",
+      "role": "verification"
+    },
+    {
+      "id": "M43",
+      "path": "docs/verification/evidence/2026-11-15-acceptance/repair-regressions.log",
+      "role": "verification"
+    },
+    {
+      "id": "M44",
+      "path": "docs/verification/evidence/2026-11-15-acceptance/independent-recheck-findings.json",
+      "role": "verification"
+    },
+    {
+      "id": "M45",
+      "path": "docs/verification/evidence/2026-11-15-acceptance/recovery-before-fix.log",
+      "role": "verification"
+    },
+    {
+      "id": "M46",
+      "path": "docs/verification/evidence/2026-11-15-acceptance/independent-regressions.log",
+      "role": "verification"
+    },
+    {
+      "id": "M47",
+      "path": "docs/verification/evidence/2026-11-15-acceptance/browser-runs.json",
+      "role": "verification"
+    },
+    {
+      "id": "M48",
+      "path": "docs/verification/evidence/2026-11-15-acceptance/full-test-suite.log",
+      "role": "verification"
+    },
+    {
+      "id": "M49",
+      "path": "test/task-runs.test.mjs",
+      "role": "implementation"
+    },
+    {
+      "id": "M50",
+      "path": "docs/verification/evidence/2026-11-15-acceptance/recovery-independent.log",
+      "role": "verification"
+    },
+    {
+      "id": "M51",
+      "path": "docs/verification/evidence/2026-11-15-acceptance/recovery-regressions.log",
+      "role": "verification"
+    }
+  ],
+  "requirements": [
+    {
+      "id": "R1",
+      "text": "delivery v2 links confirmed requirements/AC to cases, environments and scheduled checks; v1 cannot acquire new acceptance from historical successes.",
+      "status": "confirmed",
+      "basis": [
+        "M0"
+      ]
+    },
+    {
+      "id": "R2",
+      "text": "Task DONE requires every current attempt check; final scope is rerun against the final candidate and direct controller calls cannot bypass readiness.",
+      "status": "confirmed",
+      "basis": [
+        "M0"
+      ]
+    },
+    {
+      "id": "R3",
+      "text": "Case evidence must match a complete raw Playwright report, file, ID and environment; skips, flaky, missing/ambiguous results, wrong mock/live scope cannot pass.",
+      "status": "confirmed",
+      "basis": [
+        "M0"
+      ]
+    },
+    {
+      "id": "R4",
+      "text": "Execution captures inputs before, verifies after and at consumption; latest failure/interruption supersedes older pass; records persist before ledger references and recover without replay.",
+      "status": "confirmed",
+      "basis": [
+        "M0"
+      ]
+    },
+    {
+      "id": "R5",
+      "text": "Automatic readiness admits final review while manual confirmation remains pending; final approval/completion requires real recorded candidate-bound evidence and independent re-review.",
+      "status": "confirmed",
+      "basis": [
+        "M0"
+      ]
+    },
+    {
+      "id": "R6",
+      "text": "Independent review must use direct evidence mapping and cannot fill missing rules from another pass; known faults fail at the intended browser assertion.",
+      "status": "confirmed",
+      "basis": [
+        "M0"
+      ]
+    },
+    {
+      "id": "R7",
+      "text": "Proposal section 7.2: repair in the current phase, review repaired tasks before whole-feature re-verification/final review, retain maxFixRounds accounting across attempts and do not bypass final human authority.",
+      "status": "confirmed",
+      "basis": [
+        "M0"
+      ]
+    },
+    {
+      "id": "R8",
+      "text": "Proposal section 5.2: spec requires source-backed observable ACs and method; plan adds complete cases/checks/environments; spec rendering must not require future plan/test files.",
+      "status": "confirmed",
+      "basis": [
+        "M0"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "C-R1",
+      "kind": "acceptance",
+      "requirementIds": [
+        "R1"
+      ],
+      "basis": [
+        "M0"
+      ],
+      "scenario": "delivery v2 links confirmed requirements/AC to cases, environments and scheduled checks; v1 cannot acquire new acceptance from historical successes.",
+      "expected": "Implementation satisfies the described invariant; concrete counterexamples are reported.",
+      "method": "inspection"
+    },
+    {
+      "id": "C-R2",
+      "kind": "acceptance",
+      "requirementIds": [
+        "R2"
+      ],
+      "basis": [
+        "M0"
+      ],
+      "scenario": "Task DONE requires every current attempt check; final scope is rerun against the final candidate and direct controller calls cannot bypass readiness.",
+      "expected": "Implementation satisfies the described invariant; concrete counterexamples are reported.",
+      "method": "inspection"
+    },
+    {
+      "id": "C-R3",
+      "kind": "acceptance",
+      "requirementIds": [
+        "R3"
+      ],
+      "basis": [
+        "M0"
+      ],
+      "scenario": "Case evidence must match a complete raw Playwright report, file, ID and environment; skips, flaky, missing/ambiguous results, wrong mock/live scope cannot pass.",
+      "expected": "Implementation satisfies the described invariant; concrete counterexamples are reported.",
+      "method": "inspection"
+    },
+    {
+      "id": "C-R4",
+      "kind": "acceptance",
+      "requirementIds": [
+        "R4"
+      ],
+      "basis": [
+        "M0"
+      ],
+      "scenario": "Execution captures inputs before, verifies after and at consumption; latest failure/interruption supersedes older pass; records persist before ledger references and recover without replay.",
+      "expected": "Implementation satisfies the described invariant; concrete counterexamples are reported.",
+      "method": "inspection"
+    },
+    {
+      "id": "C-R5",
+      "kind": "acceptance",
+      "requirementIds": [
+        "R5"
+      ],
+      "basis": [
+        "M0"
+      ],
+      "scenario": "Automatic readiness admits final review while manual confirmation remains pending; final approval/completion requires real recorded candidate-bound evidence and independent re-review.",
+      "expected": "Implementation satisfies the described invariant; concrete counterexamples are reported.",
+      "method": "inspection"
+    },
+    {
+      "id": "C-R6",
+      "kind": "acceptance",
+      "requirementIds": [
+        "R6"
+      ],
+      "basis": [
+        "M0"
+      ],
+      "scenario": "Independent review must use direct evidence mapping and cannot fill missing rules from another pass; known faults fail at the intended browser assertion.",
+      "expected": "Implementation satisfies the described invariant; concrete counterexamples are reported.",
+      "method": "inspection"
+    },
+    {
+      "id": "C-R7",
+      "kind": "acceptance",
+      "requirementIds": [
+        "R7"
+      ],
+      "basis": [
+        "M0"
+      ],
+      "scenario": "Repair or evidence collection during VERIFYING and FINAL_REVIEW, including repeated attempts",
+      "expected": "Task repair and independent re-review take precedence, failed evidence reruns and repair rounds do not reset silently.",
+      "method": "inspection"
+    },
+    {
+      "id": "C-R8",
+      "kind": "acceptance",
+      "requirementIds": [
+        "R8"
+      ],
+      "basis": [
+        "M0"
+      ],
+      "scenario": "Render a spec-valid v2 delivery before executable plan details exist",
+      "expected": "AC rendering succeeds at spec; plan validation still rejects incomplete execution definitions.",
+      "method": "inspection"
+    }
+  ],
+  "questions": [],
+  "snapshot": {
+    "root": "/Users/tal/Desktop/frontend-workflow",
+    "files": [
+      {
+        "id": "M0",
+        "sha256": "cca3ba6b53d5d6a3eb429b7a6ca889f2d6ce792c4f4677f8b406e1510e00f3b0"
+      },
+      {
+        "id": "M1",
+        "sha256": "17de2395aa4d59bb59f99098d9cc2b104c910792a5ae8a2c23f0f9dff4b3a635"
+      },
+      {
+        "id": "M2",
+        "sha256": "b711b088226cbb3fd74250974f9b2f1d8f4901fe3440e135d8f558f18e513ce5"
+      },
+      {
+        "id": "M3",
+        "sha256": "a6c98579021758fd54c1d78fbd9894e1ecb936334a2da28131d43bdab37c6b56"
+      },
+      {
+        "id": "M4",
+        "sha256": "382bc91708c8d4979b86d68c00c76e4d9587d01fcc4585327898dd1c1d9a838b"
+      },
+      {
+        "id": "M5",
+        "sha256": "adb871fad08dc4da099e16928995ffa561571d6ae0952d7a1b5b37d820d90e52"
+      },
+      {
+        "id": "M6",
+        "sha256": "0dd77bde667bdf528e108ebea400d31e34760844a7de6fc6060aeeeff267764f"
+      },
+      {
+        "id": "M7",
+        "sha256": "4c1bba08c2760a795e0a198b0567fb64bca33fefff9e2001d70b584b80de4d5b"
+      },
+      {
+        "id": "M8",
+        "sha256": "bde3ecd2792162808269be27ce5e8dee2a699ae0a46c684d193eb76524452397"
+      },
+      {
+        "id": "M9",
+        "sha256": "70b587b4f4cd0794909770f7fc72eb2ccdcc451af2fd8abaacd48c1cb7d24a03"
+      },
+      {
+        "id": "M10",
+        "sha256": "4b3604428f230ac9dfd6c5adac4951167d015b5c85aef7e42065254b14938d17"
+      },
+      {
+        "id": "M11",
+        "sha256": "b862bd230a16b762d09496f24a96b44271cba78d4522bae8008ccc9d6259e14e"
+      },
+      {
+        "id": "M12",
+        "sha256": "c6d304a2e35b337f71863bf464204a3a3fc4d7c64195f492f17e02412d459e4d"
+      },
+      {
+        "id": "M13",
+        "sha256": "212cb5bd06a125ab48fa20a5aebe17a48a5e944dc3a2144bb861011dce5671a9"
+      },
+      {
+        "id": "M14",
+        "sha256": "3e3ecd7a7e8dd088cb721c6d901be2072b6c6e6f109ef90b55af069428e062d0"
+      },
+      {
+        "id": "M15",
+        "sha256": "a63112d7cbab32329510045ea34402c12081c6b772cf262a5117544d9479ff88"
+      },
+      {
+        "id": "M16",
+        "sha256": "c66bbc68add4c56c4609e51aa555ed668c4917a9bb18a0eb7422ea7de098e4d0"
+      },
+      {
+        "id": "M17",
+        "sha256": "1ba5404c4ace93b657a95594d688f7fe2f99e4f28971bb86e2adbfdf992fd895"
+      },
+      {
+        "id": "M18",
+        "sha256": "5eee132f1b7b18a0a2277b1370ab70816ea0d96c0aac5cc673fef39901389d1a"
+      },
+      {
+        "id": "M19",
+        "sha256": "e80692c031060581bb29fc1496e4438259bbd70f42395106f3c47cfbd08d4719"
+      },
+      {
+        "id": "M20",
+        "sha256": "35bfca0b207ce25fae9c89644ac315f01824e877498a59a930f8566db01a7494"
+      },
+      {
+        "id": "M21",
+        "sha256": "1e6480234d6f673109009e6cd22065680371e3df938bf5a4cbbcd04f5e492e56"
+      },
+      {
+        "id": "M22",
+        "sha256": "6f785d604cb7710c7a0014230747c2e6b5d6e9d6a12b4a179b546d4a36c40850"
+      },
+      {
+        "id": "M23",
+        "sha256": "26e764c9947e4b5971374b3198c9e37e28a679bc5ca4a4979770750969a307eb"
+      },
+      {
+        "id": "M24",
+        "sha256": "75c0854bdf2b6b351961059cf3cac0ee48b3da53ecc4c0b7062be428107e8946"
+      },
+      {
+        "id": "M25",
+        "sha256": "a03c578feb85a7fa57b4b33ab60ca52f6e76e12c7de85e1aa7c9397df8d3061b"
+      },
+      {
+        "id": "M26",
+        "sha256": "7902418d7f26dc481a14a71ff0e18b05816a0d96bc42845064aae02be22ff3ae"
+      },
+      {
+        "id": "M27",
+        "sha256": "cf0d4f484fb922ff7f5ac1e657350756ee2e36cec554ec3d797afd9432d92f7a"
+      },
+      {
+        "id": "M28",
+        "sha256": "abab0fe548add1c24b2cbad603361744b78ad7d023a48547b218bc8c6ff1f823"
+      },
+      {
+        "id": "M29",
+        "sha256": "e6adc9803733b91ecd23ef6432b5d1bd57590b5961aa38e1608823747ed355a6"
+      },
+      {
+        "id": "M30",
+        "sha256": "73ce861f94224d0c610204fbf10c37898f7ade4ac84fd07725f7a2127cb02dec"
+      },
+      {
+        "id": "M31",
+        "sha256": "a847e37d66587e4b9d2f029afa3cecb03d2685870bef09ecd0ea33a45d5cb675"
+      },
+      {
+        "id": "M32",
+        "sha256": "f1de6e529f472acffb728c34ba757a88e631c3f907a9b37ba951b387257f1413"
+      },
+      {
+        "id": "M33",
+        "sha256": "83d67d03a2c8cc4e4e79867b7e57b5cc4128292af21a35a257f518caf707b894"
+      },
+      {
+        "id": "M34",
+        "sha256": "ee6a2c3fdc9f2589265a1c02cc0bec40bb3d033593f5a88e851227916ac06d3f"
+      },
+      {
+        "id": "M35",
+        "sha256": "5d25240852ba1bc5a6e636bf9b76fa9fb27bf56c00c1f8558871256ae97472a9"
+      },
+      {
+        "id": "M36",
+        "sha256": "a692dab742ece8789100f6ce6654bcb1fea47aeb09bf37351ecd74cb5f6a6744"
+      },
+      {
+        "id": "M37",
+        "sha256": "d9e7f811a134e8eb86a612bd9163ce2b55a2f27960c12eeba41d711635600932"
+      },
+      {
+        "id": "M38",
+        "sha256": "e2375b8ef0e6122fc5bd4f2c780096a322f613a29b48086244237a7be3ecc5a6"
+      },
+      {
+        "id": "M39",
+        "sha256": "25a302fc25c8905b7a08ffdb3b3dfa42c8cfab24ef3e95471f0bce45181389d3"
+      },
+      {
+        "id": "M40",
+        "sha256": "bea5a8b36413fa3592f87a59cd78e9810f0ee0bebb890b9074503ce773e2976c"
+      },
+      {
+        "id": "M41",
+        "sha256": "d9549690a78ec1158585eefe1beb4f0a518daad37f15dccafd60d04db7d3efa0"
+      },
+      {
+        "id": "M42",
+        "sha256": "6a35f460403bc3ae93ed87156dbcc62ebe65f9057108ac300dc06c01e0441543"
+      },
+      {
+        "id": "M43",
+        "sha256": "863f82db8e13a5391e49681b66e6f6894673b712a1f13aba58528f98f594551d"
+      },
+      {
+        "id": "M44",
+        "sha256": "9abe2efe679c7cdbc5e422c4fac6dd3d90cd12c6ff901150f7e9db73e878cd59"
+      },
+      {
+        "id": "M45",
+        "sha256": "d8f9361167ed90a762d9ea54d61501c4e395d78eccb11f68125ed4c0082d894a"
+      },
+      {
+        "id": "M46",
+        "sha256": "dbdd2881a9e48092de8718b0d906ea548c8492f06622e743c7bcb9cf5a4d1e31"
+      },
+      {
+        "id": "M47",
+        "sha256": "bbb5f899065d2db4915f176806fad1fb976a8b39dc9b4fb70689caa216b29224"
+      },
+      {
+        "id": "M48",
+        "sha256": "4452d71d444abd1d5baee65c4901167ff6fb2b77fafbab13337671f3dfca6de0"
+      },
+      {
+        "id": "M49",
+        "sha256": "c262bc42f080f9cd9f602023cb85cf346d91d4388b37bac76a46488f6ad454f9"
+      },
+      {
+        "id": "M50",
+        "sha256": "5414761a4ddcd55a638e13d110ee170138f891d10cae141cdcfca00eb7a908f8"
+      },
+      {
+        "id": "M51",
+        "sha256": "7e0c667a9c55703923f128322a3adac3af9eba9e836c537c31bb202571fb2d57"
+      }
+    ],
+    "digest": "f7cdcf7c42feae785bd7e76643364436ed2b486936084404290bbeeb16f159a4"
+  }
+}

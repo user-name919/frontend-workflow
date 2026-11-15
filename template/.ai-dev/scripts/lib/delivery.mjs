@@ -8,6 +8,7 @@
 import path from 'node:path'
 import { access, realpath } from 'node:fs/promises'
 import { constants } from 'node:fs'
+import { validateAcceptancePlan, taskChecks } from './acceptance-plan.mjs'
 
 function err(code, message, extra = {}) {
   return { code, message, ruleId: code, ...extra }
@@ -136,8 +137,8 @@ export function validateDelivery(intake, delivery, options = {}) {
   if (!delivery || typeof delivery !== 'object' || Array.isArray(delivery)) {
     return { ok: false, errors: [err('INVALID_DELIVERY', 'delivery must be an object')] }
   }
-  if (delivery.schemaVersion !== 1) {
-    errors.push(err('UNSUPPORTED_SCHEMA', 'delivery.schemaVersion must be 1'))
+  if (![1, 2].includes(delivery.schemaVersion)) {
+    errors.push(err('UNSUPPORTED_SCHEMA', 'delivery.schemaVersion must be 1 or 2'))
   }
 
   const acceptance = Array.isArray(delivery.acceptance) ? delivery.acceptance : null
@@ -230,7 +231,7 @@ export function validateDelivery(intake, delivery, options = {}) {
     if (!Array.isArray(task.steps) || !task.steps.length) {
       errors.push(err('MISSING_STEPS', `task ${task.id} needs steps`, { artifact: task.id }))
     }
-    if (!Array.isArray(task.verify) || !task.verify.length) {
+    if (delivery.schemaVersion === 1 && (!Array.isArray(task.verify) || !task.verify.length)) {
       errors.push(err('MISSING_VERIFY', `task ${task.id} needs verify commands`, { artifact: task.id }))
     }
   }
@@ -279,6 +280,7 @@ export function validateDelivery(intake, delivery, options = {}) {
     // no-op
   }
 
+  if (delivery.schemaVersion === 2) errors.push(...validateAcceptancePlan(delivery, phase).errors)
   return { ok: errors.length === 0, errors }
 }
 
@@ -315,8 +317,9 @@ function generatedHeader(kind) {
  * 校验通过后单向生成 acceptance / tasks / traceability。
  * 默认拒绝半成品覆盖视图。任务状态来自 runtime.taskResults。
  */
-export function renderDelivery(intake, delivery, taskResults = {}) {
-  const validation = validateDelivery(intake, delivery, { phase: 'plan', checkPaths: false })
+export function renderDelivery(intake, delivery, taskResults = {}, options = {}) {
+  const phase = options.phase || 'plan'
+  const validation = validateDelivery(intake, delivery, { phase, checkPaths: false })
   if (!validation.ok) {
     // Allow rendering during early drafting only when explicitly forced by caller;
     // default: refuse partial overwrite of views.
@@ -339,6 +342,8 @@ export function renderDelivery(intake, delivery, taskResults = {}) {
     '',
   ].join('\n')
 
+  if (phase === 'spec') return { 'artifacts/design/acceptance.md': acceptanceMd }
+
   const taskSections = delivery.tasks.map((task) => {
     const result = taskResults[task.id]
     const status = result?.status || 'PENDING'
@@ -350,7 +355,7 @@ export function renderDelivery(intake, delivery, taskResults = {}) {
       `- Allowed files: ${(task.files || []).map((file) => `${file.operation}:${file.path}`).map(escapeCell).join(', ')}`,
       `- Depends on: ${(task.dependsOn || []).length ? task.dependsOn.map(escapeCell).join(', ') : 'none'}`,
       `- Steps: ${(task.steps || []).map(escapeCell).join('; ')}`,
-      `- Verify: ${(task.verify || []).map((cmd) => `${cmd.command} ${(cmd.args || []).join(' ')}`).map(escapeCell).join('; ')}`,
+      `- Verify: ${taskChecks(delivery, task).map((cmd) => `${cmd.id || ''}: ${cmd.command} ${(cmd.args || []).join(' ')}`).map(escapeCell).join('; ')}`,
       `- Status: ${escapeCell(status)}`,
       '',
     ].join('\n')
@@ -380,18 +385,29 @@ export function renderDelivery(intake, delivery, taskResults = {}) {
   ].join('\n')
 
   return {
-    'artifacts/design/acceptance.md': acceptanceMd,
+    'artifacts/design/acceptance.md': acceptanceMd + (delivery.schemaVersion === 2 ? '\n## Cases\n\n' + delivery.testCases.map((tc) => [
+      `### ${tc.id} (${tc.acceptanceIds.join(', ')})`,
+      `- Method/environment: ${tc.method} / ${tc.environmentId}`,
+      `- Required at: ${tc.requiredAt.join(', ')}`,
+      `- Preconditions: ${tc.preconditions.join('; ')}`,
+      `- Steps: ${tc.steps.join('; ')}`,
+      ...tc.expectations.map((expectation) => `- ${expectation.id} [${expectation.observable}]: ${expectation.expected}`),
+      `- Implementation: ${tc.implementation?.file || 'manual/inspection'} / ${tc.implementation?.testId || ''}`,
+      '',
+    ].join('\n')).join('\n') : ''),
     'artifacts/design/tasks.md': tasksMd,
     'artifacts/design/traceability.md': traceMd,
   }
 }
 
-/** 空的 v1 delivery 骨架，供新建 feature。 */
+/** New work uses v2. v1 remains readable for migration and historical diagnosis. */
 export function emptyDelivery() {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     acceptance: [],
     tasks: [],
     links: [],
+    testCases: [],
+    verification: { inputs: [], environments: [], checks: [], finalCheckIds: [] },
   }
 }

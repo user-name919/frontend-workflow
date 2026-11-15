@@ -34,7 +34,8 @@
       "artifacts/design/acceptance.md",
       "artifacts/design/tasks.md",
       "artifacts/design/traceability.md",
-      "artifacts/design/技术方案-技术评审使用.md"
+      "artifacts/design/技术方案-技术评审使用.md",
+      "artifacts/verification/acceptance-results.json"
     ],
     "invalidatesApprovals": ["spec", "plan", "final"]
   },
@@ -59,6 +60,10 @@
     "invalidatesApprovals": ["final"]
   },
   "artifacts/coding-changes/changes.patch": {
+    "downstream": ["artifacts/verification/verification.md"],
+    "invalidatesApprovals": ["final"]
+  },
+  "artifacts/verification/acceptance-results.json": {
     "downstream": ["artifacts/verification/verification.md"],
     "invalidatesApprovals": ["final"]
   },

@@ -1,0 +1,7 @@
+{
+  "scope": "local demonstration only",
+  "request": { "method": "GET", "path": "/api/profile", "query": {} },
+  "success": { "name": "string", "revision": "integer" },
+  "businessFailure": { "error": { "code": "string", "message": "string" } },
+  "clientTimeoutMs": 1500
+}

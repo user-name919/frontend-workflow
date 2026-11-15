@@ -28,6 +28,8 @@ node <skills-root>/prepare-review/scripts/review-contract.mjs report <sealed-pac
 
 ## 两版技术方案一致性
 
+对 delivery v2，先独立阅读原文列出应该观察到的行为，再比较 TC 清单，防止只审核已有用例。确认测试实际到达异常、操作恢复入口并断言新请求/新数据，而非只检查可见性。核对 mock 规则命中、契约版本、live 无响应替换，以及失败/skip/flaky/旧记录未被隐藏。browser 检查使用 method=test；通过项添加 verificationRef `{caseId,runId,recordMaterialId,outputMaterialId}` 直接对应包内当前记录和完整原始报告。测试覆盖与语义准确度不能由编号、数量或 JSON 合格推断。
+
 涉及 spec/plan/final 时，将编号版 `frontend-spec.md`、`技术方案-技术评审使用.md`、`review-scheme-sync.json` 及 intake/delivery 一并纳入审核材料。检查记录的新鲜度和覆盖，并直接阅读两版核对范围、行为、接口、边界和技术决策；检查是否新增未经确认的规则。评审版不要求正文编号。哈希与准备者的 pass 只能证明记录绑定版本，不能替代独立语义审核。存在遗漏、冲突或过期时退回主 Agent 同步；涉及业务决定则上报人工。实现依据仍是编号版与确认台账。
 
 ## Local dashboard observations

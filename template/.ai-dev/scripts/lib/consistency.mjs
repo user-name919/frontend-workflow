@@ -96,6 +96,7 @@ const TRACKED_ARTIFACTS = [
   'artifacts/coding-changes/changed-files.json',
   'artifacts/coding-changes/changes.patch',
   'artifacts/verification/verification.md',
+  'artifacts/verification/acceptance-results.json',
 ]
 
 /**

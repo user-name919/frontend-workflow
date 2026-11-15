@@ -51,13 +51,17 @@ function materialRefs(refs, materials, errors, nonempty = true) {
 export function validatePacket(p) {
   const errors = []
   if (!object(p)) return [{code:'INVALID_PACKET',message:'Expected packet object'}]
-  if (p.schemaVersion !== 1) error(errors, 'INVALID_SCHEMA', 'schemaVersion must be 1')
+  if (![1,2].includes(p.schemaVersion)) error(errors, 'INVALID_SCHEMA', 'schemaVersion must be 1 or 2')
   strings(p, ['reviewId','implementerId'], errors)
   choice(p.stage,['scope','spec','plan','task','final'],'stage',errors)
   const materials = rows(p.materials,'materials',errors,true)
   const requirements = rows(p.requirements,'requirements',errors,true)
   const checks = rows(p.checks,'checks',errors,true)
   const questions = rows(p.questions,'questions',errors)
+  if (p.schemaVersion === 2) {
+    if (!materials.some(m => m.id === p.deliveryMaterialId)) error(errors,'MISSING_DELIVERY','v2 requires deliveryMaterialId')
+    if (p.stage === 'task' && !text(p.taskId)) error(errors,'MISSING_TASK','v2 task review requires taskId')
+  }
   for (const m of materials) {
     strings(m,['path'],errors)
     choice(m.role,['requirement','decision','contract','project-rule','implementation','verification'],'material.role',errors)
@@ -88,6 +92,7 @@ export function validatePacket(p) {
     strings(c,['scenario','expected'],errors)
     choice(c.kind,['acceptance','engineering'],'check.kind',errors)
     choice(c.method,['inspection','test','manual'],'check.method',errors)
+    if (p.schemaVersion === 2 && ['task','final'].includes(p.stage) && c.kind === 'acceptance' && !text(c.caseId)) error(errors,'MISSING_CASE_ID',c.id)
     materialRefs(c.basis,materials,errors)
     for (const id of list(c.requirementIds,'check.requirementIds',errors,c.kind==='acceptance')) {
       const r=requirements.find(r=>r.id===id)
@@ -128,6 +133,18 @@ export async function verifyPacket(p, root) {
   try {
     const actual=await fingerprints(p,root)
     if(JSON.stringify(actual)!==JSON.stringify(p.snapshot)) error(errors,'STALE_PACKET','Inputs or packet changed; prepare a new review')
+    if (p.schemaVersion === 2 && ['plan','task','final'].includes(p.stage)) {
+      const material = p.materials.find(m => m.id === p.deliveryMaterialId)
+      const delivery = JSON.parse(await readFile(path.join(root, material.path), 'utf8'))
+      if (delivery.schemaVersion !== 2) error(errors,'LEGACY_DELIVERY','v2 packet requires delivery v2')
+      const required = (delivery.testCases || []).filter(tc => p.stage !== 'task' || tc.requiredAt.includes(`task:${p.taskId}`))
+      for (const tc of required) {
+        const checks = p.checks.filter(c => c.caseId === tc.id)
+        if (!checks.length) error(errors,'UNCOVERED_CASE',tc.id)
+        if (['task','final'].includes(p.stage) && checks.some(c => c.method !== (tc.method === 'browser' ? 'test' : tc.method))) error(errors,'CASE_METHOD_CHANGED',tc.id)
+      }
+      for (const c of p.checks.filter(c => c.caseId)) if (!(delivery.testCases || []).some(tc => tc.id === c.caseId)) error(errors,'UNKNOWN_CASE',c.caseId)
+    }
   } catch(e) { error(errors,'UNREADABLE_INPUT',e.message) }
   return errors
 }
@@ -143,7 +160,7 @@ export async function validateReport(p,r,root) {
   const errors=await verifyPacket(p,root)
   if(errors.length) return errors
   if(!object(r)) return [{code:'INVALID_REPORT',message:'Expected report object'}]
-  if(r.schemaVersion!==1) error(errors,'INVALID_SCHEMA','Report schemaVersion must be 1')
+  if(r.schemaVersion!==p.schemaVersion) error(errors,'INVALID_SCHEMA','Report schemaVersion must match packet')
   strings(r,['reviewerId','summary'],errors)
   if(r.reviewId!==p.reviewId || r.snapshotDigest!==p.snapshot.digest) error(errors,'REPORT_MISMATCH','Wrong request or version')
   choice(r.independence,['independent','self_check'],'independence',errors)
@@ -164,6 +181,19 @@ export async function validateReport(p,r,root) {
       const x=c.execution
       if(!object(x) || !text(x.command) || x.exitCode!==0 || !p.materials.some(m=>m.id===x.outputMaterialId && m.role==='verification'))
         error(errors,'MISSING_EXECUTION',c.checkId)
+      if (p.schemaVersion === 2 && required.kind === 'acceptance') {
+        const ref = c.verificationRef
+        const recordMaterial = p.materials.find(m => m.id === ref?.recordMaterialId && m.role === 'verification')
+        const outputMaterial = p.materials.find(m => m.id === ref?.outputMaterialId && m.role === 'verification')
+        if (!recordMaterial || !outputMaterial || ref?.caseId !== required.caseId || !text(ref?.runId) || x?.outputMaterialId !== ref?.outputMaterialId) error(errors,'MISSING_VERIFICATION_REF',c.checkId)
+        else {
+          try {
+            const run = JSON.parse(await readFile(path.join(root,recordMaterial.path),'utf8'))
+            if (run.schemaVersion !== 2 || run.id !== ref.runId || run.status !== 'passed' || run.exitCode !== 0 || !run.cases?.some(tc => tc.caseId === ref.caseId && tc.status === 'passed')) error(errors,'WRONG_CASE_EVIDENCE',c.checkId)
+            if (!outputMaterial.path.endsWith('/' + run.rawReportPath) || !recordMaterial.path.endsWith(`/revisions/verifications/${run.id}/record.json`)) error(errors,'WRONG_RUN_MATERIAL',c.checkId)
+          } catch (e) { error(errors,'UNREADABLE_RUN',e.message) }
+        }
+      }
     }
     if(c.result==='pass' && required.method==='manual' && !text(c.confirmationRef))
       error(errors,'MISSING_CONFIRMATION',c.checkId)

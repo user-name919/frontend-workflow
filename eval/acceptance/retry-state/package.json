@@ -1,0 +1,8 @@
+{
+  "name": "workflow-acceptance-retry-demo",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": { "acceptance": "playwright test" },
+  "devDependencies": { "@playwright/test": "1.65.1" }
+}

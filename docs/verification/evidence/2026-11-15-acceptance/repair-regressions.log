@@ -1,0 +1,21 @@
+✔ CLI cannot skip acceptance; automatic readiness permits manual review and complete still requires confirmation/re-review (20520.472ms)
+✔ task repair/review takes precedence in both verification and final review (0.722834ms)
+✔ task fix rounds survive starting and accepting the next attempt (6748.668208ms)
+✔ final repair accounting cannot be reset by a fresh request with fixRound=0 (5696.948583ms)
+✔ test failures persist a repair budget without an intervening review (5783.795958ms)
+✔ spec renders source-backed ACs before plan cases or test implementations exist (791.505625ms)
+✔ v2 rejects lost ACs, invented methods, unscheduled cases and engineering-as-acceptance (774.791208ms)
+✔ partial pass, new failure, stale inputs and edited raw output cannot admit a feature (12976.752ms)
+✔ zero-exit without fresh report or with only skipped tests never proves acceptance (2605.572958ms)
+✔ manual evidence is separate, candidate-bound, and never an approval (6590.892125ms)
+✔ DONE waits for every task check and rejects stale/idempotent replay evidence (2347.635375ms)
+✔ a completed run survives ledger CAS conflict without replaying the process (1662.524417ms)
+✔ protocol simulation: two tasks, spec fail repair, stale report, BLOCKED resume, final human (23200.338334ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 27823.270208

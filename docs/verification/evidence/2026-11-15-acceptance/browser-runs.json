@@ -1,0 +1,631 @@
+{
+  "executedAt": "2026-11-15",
+  "scope": "isolated demo; not production backend or a real business pilot",
+  "originalEvaluationBaselineChanged": false,
+  "nodeVersion": "26.5.0",
+  "playwrightVersion": "1.65.1",
+  "originalSummaryPath": "/private/tmp/frontend-workflow-browser-acceptance-20261115/summary.json",
+  "projectRoot": "/var/folders/_6/7rn48l4d6b10kw6d7fwf3g4h0000gn/T/acceptance-demo-project-XV1wNp",
+  "featureDir": "/private/var/folders/_6/7rn48l4d6b10kw6d7fwf3g4h0000gn/T/acceptance-demo-project-XV1wNp/.ai-dev/features/REQ-RETRY-DEMO",
+  "runs": [
+    {
+      "label": "correct baseline / backend unavailable / controlled responses",
+      "runId": "ver-b1a3fbcb-4c91-4579-9937-ff761903959a",
+      "status": "passed",
+      "expectedFailure": null,
+      "expectedOutcomeObserved": true,
+      "recordPath": "/private/var/folders/_6/7rn48l4d6b10kw6d7fwf3g4h0000gn/T/acceptance-demo-project-XV1wNp/.ai-dev/features/REQ-RETRY-DEMO/revisions/verifications/ver-b1a3fbcb-4c91-4579-9937-ff761903959a/record.json"
+    },
+    {
+      "label": "real local HTTP integration",
+      "runId": "ver-1b7edae8-27e5-49f3-a181-9ce4c5da253d",
+      "status": "passed",
+      "expectedFailure": null,
+      "expectedOutcomeObserved": true,
+      "recordPath": "/private/var/folders/_6/7rn48l4d6b10kw6d7fwf3g4h0000gn/T/acceptance-demo-project-XV1wNp/.ai-dev/features/REQ-RETRY-DEMO/revisions/verifications/ver-1b7edae8-27e5-49f3-a181-9ce4c5da253d/record.json"
+    },
+    {
+      "label": "missing retry entry",
+      "runId": "ver-1c66e52b-e238-49ec-8558-3710c73f108e",
+      "status": "failed",
+      "expectedFailure": {
+        "caseId": "TC-HTTP-FAIL",
+        "assertion": "E-RETRY-AVAILABLE"
+      },
+      "expectedOutcomeObserved": true,
+      "recordPath": "/private/var/folders/_6/7rn48l4d6b10kw6d7fwf3g4h0000gn/T/acceptance-demo-project-XV1wNp/.ai-dev/features/REQ-RETRY-DEMO/revisions/verifications/ver-1c66e52b-e238-49ec-8558-3710c73f108e/record.json"
+    },
+    {
+      "label": "retry not wired",
+      "runId": "ver-2ed53aff-d9b2-4586-a698-aa0fed7a09b7",
+      "status": "failed",
+      "expectedFailure": {
+        "caseId": "TC-RECOVER",
+        "assertion": "E-RETRY-REQUEST"
+      },
+      "expectedOutcomeObserved": true,
+      "recordPath": "/private/var/folders/_6/7rn48l4d6b10kw6d7fwf3g4h0000gn/T/acceptance-demo-project-XV1wNp/.ai-dev/features/REQ-RETRY-DEMO/revisions/verifications/ver-2ed53aff-d9b2-4586-a698-aa0fed7a09b7/record.json"
+    },
+    {
+      "label": "error hidden",
+      "runId": "ver-8e4fd7e8-6381-4931-9f17-630cc306eca7",
+      "status": "failed",
+      "expectedFailure": {
+        "caseId": "TC-HTTP-FAIL",
+        "assertion": "E-ERROR-VISIBLE"
+      },
+      "expectedOutcomeObserved": true,
+      "recordPath": "/private/var/folders/_6/7rn48l4d6b10kw6d7fwf3g4h0000gn/T/acceptance-demo-project-XV1wNp/.ai-dev/features/REQ-RETRY-DEMO/revisions/verifications/ver-8e4fd7e8-6381-4931-9f17-630cc306eca7/record.json"
+    },
+    {
+      "label": "stale response",
+      "runId": "ver-8403fff7-61be-403e-a203-d8b007a3a8bb",
+      "status": "failed",
+      "expectedFailure": {
+        "caseId": "TC-RECOVER",
+        "assertion": "E-RESPONSE-CONTENT"
+      },
+      "expectedOutcomeObserved": true,
+      "recordPath": "/private/var/folders/_6/7rn48l4d6b10kw6d7fwf3g4h0000gn/T/acceptance-demo-project-XV1wNp/.ai-dev/features/REQ-RETRY-DEMO/revisions/verifications/ver-8403fff7-61be-403e-a203-d8b007a3a8bb/record.json"
+    },
+    {
+      "label": "parallel requests",
+      "runId": "ver-ab0394c6-38b8-474d-b72c-953b9f8791c2",
+      "status": "failed",
+      "expectedFailure": {
+        "caseId": "TC-REPEAT",
+        "assertion": "E-NO-PARALLEL-REQUEST"
+      },
+      "expectedOutcomeObserved": true,
+      "recordPath": "/private/var/folders/_6/7rn48l4d6b10kw6d7fwf3g4h0000gn/T/acceptance-demo-project-XV1wNp/.ai-dev/features/REQ-RETRY-DEMO/revisions/verifications/ver-ab0394c6-38b8-474d-b72c-953b9f8791c2/record.json"
+    },
+    {
+      "label": "success regression",
+      "runId": "ver-a4a34bf8-cbc1-421d-b0ff-9877c936a706",
+      "status": "failed",
+      "expectedFailure": {
+        "caseId": "TC-SUCCESS",
+        "assertion": "E-SUCCESS-STATE"
+      },
+      "expectedOutcomeObserved": true,
+      "recordPath": "/private/var/folders/_6/7rn48l4d6b10kw6d7fwf3g4h0000gn/T/acceptance-demo-project-XV1wNp/.ai-dev/features/REQ-RETRY-DEMO/revisions/verifications/ver-a4a34bf8-cbc1-421d-b0ff-9877c936a706/record.json"
+    },
+    {
+      "label": "business error treated as success",
+      "runId": "ver-e0b70b1c-1cd0-4274-839d-667e1b0d8c89",
+      "status": "failed",
+      "expectedFailure": {
+        "caseId": "TC-BUSINESS-FAIL",
+        "assertion": "E-FAILURE-STATE"
+      },
+      "expectedOutcomeObserved": true,
+      "recordPath": "/private/var/folders/_6/7rn48l4d6b10kw6d7fwf3g4h0000gn/T/acceptance-demo-project-XV1wNp/.ai-dev/features/REQ-RETRY-DEMO/revisions/verifications/ver-e0b70b1c-1cd0-4274-839d-667e1b0d8c89/record.json"
+    },
+    {
+      "label": "client timeout removed",
+      "runId": "ver-52a7b8a1-006f-465c-a9a0-274f9e208d8e",
+      "status": "failed",
+      "expectedFailure": {
+        "caseId": "TC-TIMEOUT",
+        "assertion": "E-FAILURE-STATE"
+      },
+      "expectedOutcomeObserved": true,
+      "recordPath": "/private/var/folders/_6/7rn48l4d6b10kw6d7fwf3g4h0000gn/T/acceptance-demo-project-XV1wNp/.ai-dev/features/REQ-RETRY-DEMO/revisions/verifications/ver-52a7b8a1-006f-465c-a9a0-274f9e208d8e/record.json"
+    },
+    {
+      "label": "live contract mismatch",
+      "runId": "ver-59aa95e0-f73a-4077-98b3-e699fe5b3796",
+      "status": "failed",
+      "expectedFailure": {
+        "caseId": "TC-LIVE",
+        "assertion": "E-LIVE-NAME-CONTRACT"
+      },
+      "expectedOutcomeObserved": true,
+      "recordPath": "/private/var/folders/_6/7rn48l4d6b10kw6d7fwf3g4h0000gn/T/acceptance-demo-project-XV1wNp/.ai-dev/features/REQ-RETRY-DEMO/revisions/verifications/ver-59aa95e0-f73a-4077-98b3-e699fe5b3796/record.json"
+    },
+    {
+      "label": "restored baseline",
+      "runId": "ver-823b259b-da37-4df8-93f0-10d071357cb2",
+      "status": "passed",
+      "expectedFailure": null,
+      "expectedOutcomeObserved": true,
+      "recordPath": "/private/var/folders/_6/7rn48l4d6b10kw6d7fwf3g4h0000gn/T/acceptance-demo-project-XV1wNp/.ai-dev/features/REQ-RETRY-DEMO/revisions/verifications/ver-823b259b-da37-4df8-93f0-10d071357cb2/record.json"
+    },
+    {
+      "label": "restored integration",
+      "runId": "ver-99463e7a-f447-4f1b-9cf4-852e34020d6c",
+      "status": "passed",
+      "expectedFailure": null,
+      "expectedOutcomeObserved": true,
+      "recordPath": "/private/var/folders/_6/7rn48l4d6b10kw6d7fwf3g4h0000gn/T/acceptance-demo-project-XV1wNp/.ai-dev/features/REQ-RETRY-DEMO/revisions/verifications/ver-99463e7a-f447-4f1b-9cf4-852e34020d6c/record.json"
+    }
+  ],
+  "currentRunnerRecheck": {
+    "runs": [
+      {
+        "checkId": "mock-browser",
+        "runId": "ver-63988b31-78f2-4b03-a392-7c9f6fa1fee0",
+        "status": "passed",
+        "cases": [
+          {
+            "id": "TC-SUCCESS",
+            "status": "passed"
+          },
+          {
+            "id": "TC-LOADING",
+            "status": "passed"
+          },
+          {
+            "id": "TC-HTTP-FAIL",
+            "status": "passed"
+          },
+          {
+            "id": "TC-RECOVER",
+            "status": "passed"
+          },
+          {
+            "id": "TC-REPEAT",
+            "status": "passed"
+          },
+          {
+            "id": "TC-RETRY-REPEAT",
+            "status": "passed"
+          },
+          {
+            "id": "TC-BUSINESS-FAIL",
+            "status": "passed"
+          },
+          {
+            "id": "TC-NETWORK-FAIL",
+            "status": "passed"
+          },
+          {
+            "id": "TC-TIMEOUT",
+            "status": "passed"
+          }
+        ],
+        "recordPath": "/private/var/folders/_6/7rn48l4d6b10kw6d7fwf3g4h0000gn/T/acceptance-demo-project-XV1wNp/.ai-dev/features/REQ-RETRY-DEMO/revisions/verifications/ver-63988b31-78f2-4b03-a392-7c9f6fa1fee0/record.json"
+      },
+      {
+        "checkId": "live-browser",
+        "runId": "ver-1876f419-363e-465d-89d0-023a71cd54f4",
+        "status": "passed",
+        "cases": [
+          {
+            "id": "TC-LIVE",
+            "status": "passed"
+          }
+        ],
+        "recordPath": "/private/var/folders/_6/7rn48l4d6b10kw6d7fwf3g4h0000gn/T/acceptance-demo-project-XV1wNp/.ai-dev/features/REQ-RETRY-DEMO/revisions/verifications/ver-1876f419-363e-465d-89d0-023a71cd54f4/record.json"
+      }
+    ],
+    "readiness": {
+      "ok": true,
+      "scope": "feature",
+      "checks": [
+        {
+          "checkId": "mock-browser",
+          "runId": "ver-63988b31-78f2-4b03-a392-7c9f6fa1fee0",
+          "status": "passed",
+          "cases": [
+            {
+              "caseId": "TC-SUCCESS",
+              "environmentId": "mock",
+              "status": "passed",
+              "testId": "TC-SUCCESS",
+              "file": "browser/retry.spec.mjs",
+              "errors": [],
+              "attempts": [
+                {
+                  "status": "passed",
+                  "retry": 0,
+                  "errors": []
+                }
+              ],
+              "context": {
+                "environmentId": "mock",
+                "baseURL": "http://127.0.0.1:49341",
+                "mockedRoutes": [
+                  "profile"
+                ],
+                "mockHits": {
+                  "profile": 1
+                },
+                "requests": [
+                  {
+                    "method": "GET",
+                    "url": "http://127.0.0.1:49341/api/profile"
+                  }
+                ]
+              }
+            },
+            {
+              "caseId": "TC-LOADING",
+              "environmentId": "mock",
+              "status": "passed",
+              "testId": "TC-LOADING",
+              "file": "browser/retry.spec.mjs",
+              "errors": [],
+              "attempts": [
+                {
+                  "status": "passed",
+                  "retry": 0,
+                  "errors": []
+                }
+              ],
+              "context": {
+                "environmentId": "mock",
+                "baseURL": "http://127.0.0.1:49341",
+                "mockedRoutes": [
+                  "profile"
+                ],
+                "mockHits": {
+                  "profile": 1
+                },
+                "requests": [
+                  {
+                    "method": "GET",
+                    "url": "http://127.0.0.1:49341/api/profile"
+                  }
+                ]
+              }
+            },
+            {
+              "caseId": "TC-HTTP-FAIL",
+              "environmentId": "mock",
+              "status": "passed",
+              "testId": "TC-HTTP-FAIL",
+              "file": "browser/retry.spec.mjs",
+              "errors": [],
+              "attempts": [
+                {
+                  "status": "passed",
+                  "retry": 0,
+                  "errors": []
+                }
+              ],
+              "context": {
+                "environmentId": "mock",
+                "baseURL": "http://127.0.0.1:49341",
+                "mockedRoutes": [
+                  "profile"
+                ],
+                "mockHits": {
+                  "profile": 1
+                },
+                "requests": [
+                  {
+                    "method": "GET",
+                    "url": "http://127.0.0.1:49341/api/profile"
+                  }
+                ]
+              }
+            },
+            {
+              "caseId": "TC-RECOVER",
+              "environmentId": "mock",
+              "status": "passed",
+              "testId": "TC-RECOVER",
+              "file": "browser/retry.spec.mjs",
+              "errors": [],
+              "attempts": [
+                {
+                  "status": "passed",
+                  "retry": 0,
+                  "errors": []
+                }
+              ],
+              "context": {
+                "environmentId": "mock",
+                "baseURL": "http://127.0.0.1:49341",
+                "mockedRoutes": [
+                  "profile"
+                ],
+                "mockHits": {
+                  "profile": 2
+                },
+                "requests": [
+                  {
+                    "method": "GET",
+                    "url": "http://127.0.0.1:49341/api/profile"
+                  },
+                  {
+                    "method": "GET",
+                    "url": "http://127.0.0.1:49341/api/profile"
+                  }
+                ]
+              }
+            },
+            {
+              "caseId": "TC-REPEAT",
+              "environmentId": "mock",
+              "status": "passed",
+              "testId": "TC-REPEAT",
+              "file": "browser/retry.spec.mjs",
+              "errors": [],
+              "attempts": [
+                {
+                  "status": "passed",
+                  "retry": 0,
+                  "errors": []
+                }
+              ],
+              "context": {
+                "environmentId": "mock",
+                "baseURL": "http://127.0.0.1:49341",
+                "mockedRoutes": [
+                  "profile"
+                ],
+                "mockHits": {
+                  "profile": 1
+                },
+                "requests": [
+                  {
+                    "method": "GET",
+                    "url": "http://127.0.0.1:49341/api/profile"
+                  }
+                ]
+              }
+            },
+            {
+              "caseId": "TC-RETRY-REPEAT",
+              "environmentId": "mock",
+              "status": "passed",
+              "testId": "TC-RETRY-REPEAT",
+              "file": "browser/retry.spec.mjs",
+              "errors": [],
+              "attempts": [
+                {
+                  "status": "passed",
+                  "retry": 0,
+                  "errors": []
+                }
+              ],
+              "context": {
+                "environmentId": "mock",
+                "baseURL": "http://127.0.0.1:49341",
+                "mockedRoutes": [
+                  "profile"
+                ],
+                "mockHits": {
+                  "profile": 2
+                },
+                "requests": [
+                  {
+                    "method": "GET",
+                    "url": "http://127.0.0.1:49341/api/profile"
+                  },
+                  {
+                    "method": "GET",
+                    "url": "http://127.0.0.1:49341/api/profile"
+                  }
+                ]
+              }
+            },
+            {
+              "caseId": "TC-BUSINESS-FAIL",
+              "environmentId": "mock",
+              "status": "passed",
+              "testId": "TC-BUSINESS-FAIL",
+              "file": "browser/retry.spec.mjs",
+              "errors": [],
+              "attempts": [
+                {
+                  "status": "passed",
+                  "retry": 0,
+                  "errors": []
+                }
+              ],
+              "context": {
+                "environmentId": "mock",
+                "baseURL": "http://127.0.0.1:49341",
+                "mockedRoutes": [
+                  "profile"
+                ],
+                "mockHits": {
+                  "profile": 1
+                },
+                "requests": [
+                  {
+                    "method": "GET",
+                    "url": "http://127.0.0.1:49341/api/profile"
+                  }
+                ]
+              }
+            },
+            {
+              "caseId": "TC-NETWORK-FAIL",
+              "environmentId": "mock",
+              "status": "passed",
+              "testId": "TC-NETWORK-FAIL",
+              "file": "browser/retry.spec.mjs",
+              "errors": [],
+              "attempts": [
+                {
+                  "status": "passed",
+                  "retry": 0,
+                  "errors": []
+                }
+              ],
+              "context": {
+                "environmentId": "mock",
+                "baseURL": "http://127.0.0.1:49341",
+                "mockedRoutes": [
+                  "profile"
+                ],
+                "mockHits": {
+                  "profile": 2
+                },
+                "requests": [
+                  {
+                    "method": "GET",
+                    "url": "http://127.0.0.1:49341/api/profile"
+                  },
+                  {
+                    "method": "GET",
+                    "url": "http://127.0.0.1:49341/api/profile"
+                  }
+                ]
+              }
+            },
+            {
+              "caseId": "TC-TIMEOUT",
+              "environmentId": "mock",
+              "status": "passed",
+              "testId": "TC-TIMEOUT",
+              "file": "browser/retry.spec.mjs",
+              "errors": [],
+              "attempts": [
+                {
+                  "status": "passed",
+                  "retry": 0,
+                  "errors": []
+                }
+              ],
+              "context": {
+                "environmentId": "mock",
+                "baseURL": "http://127.0.0.1:49341",
+                "mockedRoutes": [
+                  "profile"
+                ],
+                "mockHits": {
+                  "profile": 2
+                },
+                "requests": [
+                  {
+                    "method": "GET",
+                    "url": "http://127.0.0.1:49341/api/profile"
+                  },
+                  {
+                    "method": "GET",
+                    "url": "http://127.0.0.1:49341/api/profile"
+                  }
+                ]
+              }
+            }
+          ],
+          "rawReportPath": "revisions/verifications/ver-63988b31-78f2-4b03-a392-7c9f6fa1fee0/raw-report.json",
+          "repair": {
+            "scope": "feature",
+            "taskId": null,
+            "checkId": "mock-browser",
+            "consecutiveFailures": 0,
+            "fixRound": 0,
+            "lastRunId": "ver-63988b31-78f2-4b03-a392-7c9f6fa1fee0"
+          }
+        },
+        {
+          "checkId": "live-browser",
+          "runId": "ver-1876f419-363e-465d-89d0-023a71cd54f4",
+          "status": "passed",
+          "cases": [
+            {
+              "caseId": "TC-LIVE",
+              "environmentId": "live",
+              "status": "passed",
+              "testId": "TC-LIVE",
+              "file": "browser/live.spec.mjs",
+              "errors": [],
+              "attempts": [
+                {
+                  "status": "passed",
+                  "retry": 0,
+                  "errors": []
+                }
+              ],
+              "context": {
+                "environmentId": "live",
+                "baseURL": "http://127.0.0.1:49341",
+                "mockedRoutes": [],
+                "mockHits": {},
+                "backendIdentity": "local-service-v1"
+              }
+            }
+          ],
+          "rawReportPath": "revisions/verifications/ver-1876f419-363e-465d-89d0-023a71cd54f4/raw-report.json",
+          "repair": {
+            "scope": "feature",
+            "taskId": null,
+            "checkId": "live-browser",
+            "consecutiveFailures": 0,
+            "fixRound": 0,
+            "lastRunId": "ver-1876f419-363e-465d-89d0-023a71cd54f4"
+          }
+        }
+      ],
+      "cases": [
+        {
+          "caseId": "TC-SUCCESS",
+          "environmentId": "mock",
+          "method": "browser",
+          "status": "passed",
+          "runId": "ver-63988b31-78f2-4b03-a392-7c9f6fa1fee0"
+        },
+        {
+          "caseId": "TC-LOADING",
+          "environmentId": "mock",
+          "method": "browser",
+          "status": "passed",
+          "runId": "ver-63988b31-78f2-4b03-a392-7c9f6fa1fee0"
+        },
+        {
+          "caseId": "TC-HTTP-FAIL",
+          "environmentId": "mock",
+          "method": "browser",
+          "status": "passed",
+          "runId": "ver-63988b31-78f2-4b03-a392-7c9f6fa1fee0"
+        },
+        {
+          "caseId": "TC-RECOVER",
+          "environmentId": "mock",
+          "method": "browser",
+          "status": "passed",
+          "runId": "ver-63988b31-78f2-4b03-a392-7c9f6fa1fee0"
+        },
+        {
+          "caseId": "TC-REPEAT",
+          "environmentId": "mock",
+          "method": "browser",
+          "status": "passed",
+          "runId": "ver-63988b31-78f2-4b03-a392-7c9f6fa1fee0"
+        },
+        {
+          "caseId": "TC-RETRY-REPEAT",
+          "environmentId": "mock",
+          "method": "browser",
+          "status": "passed",
+          "runId": "ver-63988b31-78f2-4b03-a392-7c9f6fa1fee0"
+        },
+        {
+          "caseId": "TC-BUSINESS-FAIL",
+          "environmentId": "mock",
+          "method": "browser",
+          "status": "passed",
+          "runId": "ver-63988b31-78f2-4b03-a392-7c9f6fa1fee0"
+        },
+        {
+          "caseId": "TC-NETWORK-FAIL",
+          "environmentId": "mock",
+          "method": "browser",
+          "status": "passed",
+          "runId": "ver-63988b31-78f2-4b03-a392-7c9f6fa1fee0"
+        },
+        {
+          "caseId": "TC-TIMEOUT",
+          "environmentId": "mock",
+          "method": "browser",
+          "status": "passed",
+          "runId": "ver-63988b31-78f2-4b03-a392-7c9f6fa1fee0"
+        },
+        {
+          "caseId": "TC-LIVE",
+          "environmentId": "live",
+          "method": "browser",
+          "status": "passed",
+          "runId": "ver-1876f419-363e-465d-89d0-023a71cd54f4"
+        }
+      ],
+      "errors": []
+    }
+  }
+}

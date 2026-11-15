@@ -246,3 +246,15 @@ npx --yes github:user-name919/frontend-workflow#vX.Y.Z setup .
 - [Cursor：Agent Skills](https://cursor.com/docs/skills)说明 Cursor 同样发现 `.agents/skills`，并可通过 `/skill-name` 调用。
 
 仓库以 `.agents/skills/` 为团队统一分发边界：可以持续增加定制化 Skills，一次安装或更新同步全部内容，同时保留每个 Skill 自己的渐进式触发机制。
+
+## 需求驱动自动化验收
+
+新增 `acceptance-testing` Skill 与 delivery v2：开发前从确认需求生成用例，在任务交审前执行任务检查，VERIFYING 对最终候选重跑整单场景。门禁核对逐用例原始报告、环境及版本；mock 与真实联调分别记录，人工项保留实际确认。
+
+- [接入说明与命令](template/.ai-dev/acceptance-testing.md)
+- [真实浏览器演示与缺陷反例复跑](eval/acceptance/README.md)
+- [本次验证记录与证据](docs/verification/2026-11-15-acceptance-testing.md)
+- [流程对比图、覆盖边界与真实需求实测](docs/requirement-acceptance-guide.md)
+- [设计方案](docs/plans/2026-11-15-requirement-acceptance-testing.md)
+
+旧 delivery v1 只保留历史命令证据，进行中的需求需在下一次门禁前补齐 v2 并重新审核；已 COMPLETE 的历史需求不自动重开。

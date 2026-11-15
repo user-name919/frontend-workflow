@@ -1,0 +1,55 @@
+{
+  "featureDir": "/private/tmp/workflow-acceptance-XPq318/.ai-dev/features/REQ-ACCEPTANCE",
+  "before": {
+    "status": "running",
+    "fixRound": 1,
+    "attemptId": "A3",
+    "hostRunId": "fixture-worker-3",
+    "summary": "Protocol fixture",
+    "changedFiles": [
+      "app.js"
+    ],
+    "verificationIds": [
+      "ver-6bc43784-edc3-4a2f-84a9-cb8633668015",
+      "ver-fa2fb78a-5d5e-4c40-a358-e6c159e8efda"
+    ],
+    "concerns": [],
+    "requiredContext": [],
+    "exportedInterfaces": [],
+    "resultRef": "revisions/tasks/T1/A2/result.json",
+    "reasonCode": null,
+    "reviewStatus": null,
+    "lastReviewRef": "revisions/reviews/PROTOCOL-REJECT-A2/fixture-reviewer.json",
+    "reviewDecision": "repair",
+    "escalateTo": "main",
+    "reviewEvent": "review.returned",
+    "lastSummaryRef": "revisions/reviews/PROTOCOL-REJECT-A2/summary.md"
+  },
+  "after": {
+    "status": "running",
+    "fixRound": 1,
+    "attemptId": "A3",
+    "hostRunId": "fixture-worker-3",
+    "summary": "Protocol fixture",
+    "changedFiles": [
+      "app.js"
+    ],
+    "verificationIds": [
+      "ver-6bc43784-edc3-4a2f-84a9-cb8633668015",
+      "ver-fa2fb78a-5d5e-4c40-a358-e6c159e8efda"
+    ],
+    "concerns": [],
+    "requiredContext": [],
+    "exportedInterfaces": [],
+    "resultRef": "revisions/tasks/T1/A2/result.json",
+    "reasonCode": null,
+    "reviewStatus": null,
+    "lastReviewRef": "revisions/reviews/PROTOCOL-REJECT-A2/fixture-reviewer.json",
+    "reviewDecision": "repair",
+    "escalateTo": "main",
+    "reviewEvent": "review.returned",
+    "lastSummaryRef": "revisions/reviews/PROTOCOL-REJECT-A2/summary.md"
+  },
+  "activeTaskIdAfter": null
+}
+Reproduced: stopped A3 remains running because resultRef belongs to A2; active task pointer is cleared.

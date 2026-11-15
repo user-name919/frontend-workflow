@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url'
 import { traceCli } from './lib/monitor-events.mjs'
 import { validateIntake, emptyIntake } from './lib/intake.mjs'
 import { validateDelivery, emptyDelivery } from './lib/delivery.mjs'
+import { draftDeliveryUpgrade } from './lib/acceptance-plan.mjs'
 import { renderFeatureArtifacts } from './render-artifacts.mjs'
 import { mutateFeature, readFeature, StoreError } from './lib/workspace-store.mjs'
 
@@ -59,7 +60,8 @@ export async function createImportDraft(featureDir, options = {}) {
 
   // Do not invent business facts from Markdown regex.
   const intake = options.intake && typeof options.intake === 'object' ? options.intake : emptyIntake()
-  const delivery = options.delivery && typeof options.delivery === 'object' ? options.delivery : emptyDelivery()
+  const providedDelivery = options.delivery && typeof options.delivery === 'object' ? options.delivery : emptyDelivery()
+  const delivery = providedDelivery.schemaVersion === 1 ? draftDeliveryUpgrade(providedDelivery) : providedDelivery
 
   const intakeResult = validateIntake(intake)
   if (!intakeResult.ok) {
@@ -108,6 +110,8 @@ export async function acceptImportDraft(featureDir, draftPath, options = {}) {
   if (!options.actor) throw new StoreError('INVALID_REQUEST', 'actor is required to accept import')
 
   const draft = JSON.parse(await readFile(path.resolve(draftPath), 'utf8'))
+  if (status.state === 'COMPLETE') throw new StoreError('COMPLETE_IS_HISTORY', 'Create a follow-up feature instead of reopening completed work')
+  if (draft.delivery?.schemaVersion !== 2) throw new StoreError('ACCEPTANCE_MIGRATION_REQUIRED', 'Import must supply delivery v2')
   const intakeResult = validateIntake(draft.intake)
   if (!intakeResult.ok) {
     throw new StoreError('INVALID_INTAKE', intakeResult.errors.map((item) => item.message).join('; '))
@@ -118,6 +122,10 @@ export async function acceptImportDraft(featureDir, draftPath, options = {}) {
   }
 
   const backupDir = await backupMarkdown(resolved)
+  for (const relative of ['artifacts/analysis/intake.json', 'artifacts/design/delivery.json']) {
+    await mkdir(path.dirname(path.join(backupDir, relative)), { recursive: true })
+    await copyFile(path.join(resolved, relative), path.join(backupDir, relative)).catch((error) => { if (error.code !== 'ENOENT') throw error })
+  }
   await writeFile(path.join(resolved, 'artifacts/analysis/intake.json'), `${JSON.stringify(draft.intake, null, 2)}\n`)
   await writeFile(path.join(resolved, 'artifacts/design/delivery.json'), `${JSON.stringify(draft.delivery, null, 2)}\n`)
   await renderFeatureArtifacts(resolved)

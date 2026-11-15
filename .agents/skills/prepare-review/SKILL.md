@@ -30,6 +30,8 @@ node <skills-root>/prepare-review/scripts/review-contract.mjs check <sealed-pack
 
 ## 输出与恢复
 
+delivery v2 的方案/计划准备同时使用同级 acceptance-testing：先从原文核对行为，再核对生成的用例与预期。plan/task/final 使用 v2 packet，deliveryMaterialId 引用实际 delivery；task 包提供 taskId。每个具体用例以 caseId 对应检查，task/final 方式与计划一致。browser 通过证据必须收齐当前 run 的 record.json、raw-report.json、测试实现与环境输入。不要用仅有 exit 0 的日志或旧包替代逐用例证据。
+
 输出包路径、审核范围、未决问题和真实校验结果。seal 成功只代表格式与版本可复核，不代表内容正确或允许进入下一阶段。
 
 Reviewer 发现遗漏标准、新测试结果或版本变化时，先补充对应真实来源/材料并重新 seal，然后重新审核受影响项，不能复用旧通过结论。禁止修改工作流状态、替用户批准、提交、推送或发布。

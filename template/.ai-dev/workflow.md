@@ -201,6 +201,8 @@ node .ai-dev/scripts/record-code-changes.mjs <feature-dir> <file...>
 
 ## 阶段 5：VERIFYING
 
+需求验收使用 delivery v2，具体结构和命令见 [acceptance-testing.md](acceptance-testing.md)，由同级 acceptance-testing Skill 辅助。方案阶段定义来源和 AC，计划阶段补 TC/环境/check；IMPLEMENTING 的每个任务在 DONE 交审前运行 verifyIds。此阶段使用 scope=feature 在最终候选版本重新执行所有 finalCheckIds，不复用任务历史成功作为整单结果。旧 delivery v1 需要显式升级。
+
 1. 从真实项目脚本和配置确认实际存在的 lint、类型检查、测试和构建命令。
 2. 执行自动化验收检查，并让开发人员在同一个真实项目环境审核页面效果。
 3. 在 `artifacts/verification/verification.md` 记录准确命令、结果、人工检查和剩余风险。
@@ -208,6 +210,8 @@ node .ai-dev/scripts/record-code-changes.mjs <feature-dir> <file...>
 5. 确认 `staleArtifacts` 为空，将状态转为 `FINAL_REVIEW`，然后停止。
 
 ## 审核点 3：FINAL_REVIEW
+
+进入本阶段前必须自动化验收就绪；计划内人工项可以 pending。确认后通过 record-manual-check 登记实际观察及候选版本、重新封存与独立复审，最终 approve/COMPLETE 才放行。必需真实联调未执行、skip/flaky、缺报告或过期运行都不能完成。模拟接口通过只说明该环境下前端行为已验证。
 
 展示文件清单、最终 Patch、追踪关系、验证结果、未验证事项和回滚说明。人工记录 `approvals.final` 后才能进入 `COMPLETE`。工作流不会自动 commit、push、创建 PR、merge 或 deploy。
 

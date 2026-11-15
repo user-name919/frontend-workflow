@@ -16,6 +16,8 @@ import { gateAuthorized } from './reviews.mjs'
 import { assertSnapshotBoundApproval } from './review-package.mjs'
 import { validateReviewScheme } from './review-scheme.mjs'
 import { validateTechScheme } from './tech-scheme.mjs'
+import { acceptanceReadiness } from './acceptance.mjs'
+import { readSnapshot, verifySnapshot } from './snapshots.mjs'
 
 function err(code, message, extra = {}) {
   return { code, message, ruleId: code, ...extra }
@@ -99,11 +101,11 @@ function openBlockingQuestions(intake, gate) {
  * spec 调 validateTechScheme 做图与 FR 引用检查；final 只认已落盘的执行证据，不编造成绩。
  * 语义对错仍留给人与后续独立审核。
  */
-export async function evaluateGate(featureDir, gate) {
+export async function evaluateGate(featureDir, gate, options = {}) {
   const resolved = path.resolve(featureDir)
   const errors = []
   const warnings = []
-  const requiredInputs = REQUIRED_INPUTS[gate]
+  const requiredInputs = REQUIRED_INPUTS[gate] && [...REQUIRED_INPUTS[gate]]
   if (!requiredInputs) {
     return {
       ok: false,
@@ -227,6 +229,9 @@ export async function evaluateGate(featureDir, gate) {
     if (deliveryBundle.__error) {
       errors.push(err('INVALID_DELIVERY', `Cannot read delivery.json: ${deliveryBundle.__error.message}`))
     } else {
+      if (deliveryBundle.schemaVersion !== 2 && status.state !== 'COMPLETE') {
+        errors.push(err('ACCEPTANCE_MIGRATION_REQUIRED', 'Upgrade delivery v1 and review source-backed cases before the next gate'))
+      }
       const phase = gate === 'final' ? 'final' : gate
       const deliveryResult = await validateDeliveryAsync(intakeBundle, deliveryBundle, {
         phase,
@@ -260,10 +265,22 @@ export async function evaluateGate(featureDir, gate) {
     // P02: require execution evidence slots; do not invent passed results.
     const taskResults = status.runtime?.taskResults || {}
     const deliveryBundle = await readJson(resolved, 'artifacts/design/delivery.json')
+    if (deliveryBundle.schemaVersion === 2) {
+      const readiness = await acceptanceReadiness(resolved, { includeManual: options.includeManual !== false })
+      errors.push(...readiness.errors)
+      requiredInputs.push('artifacts/verification/acceptance-results.json')
+      if (!await readText(resolved, 'artifacts/verification/acceptance-results.json')) errors.push(err('MISSING_ACCEPTANCE_RESULTS', 'Generate the derived acceptance results'))
+      if (options.requireReview) {
+        const review = status.reviews?.final
+        let fresh = false
+        try { fresh = (await verifySnapshot(resolved, await readSnapshot(resolved, review?.snapshotId))).fresh } catch { /* Missing review is not approval. */ }
+        if (review?.verdict !== 'pass' || review?.independence !== 'independent' || review?.evidenceChanged || !fresh) errors.push(err('FINAL_REVIEW_REQUIRED', 'Re-seal and independently review the current acceptance evidence'))
+      }
+    }
     if (!deliveryBundle.__error) {
       for (const task of deliveryBundle.tasks || []) {
         const result = taskResults[task.id]
-        if (!result || result.reviewStatus !== 'passed') {
+        if (!result || result.reviewStatus !== 'passed' || (deliveryBundle.schemaVersion === 2 && result.status !== 'passed')) {
           errors.push(
             err(
               'MISSING_EXECUTION_EVIDENCE',
@@ -272,7 +289,7 @@ export async function evaluateGate(featureDir, gate) {
             ),
           )
         }
-        if ((task.verify || []).length) {
+        if (deliveryBundle.schemaVersion === 1 && (task.verify || []).length) {
           const verificationIds = result?.verificationIds || []
           const records = status.runtime?.verifications || {}
           if (!verificationIds.length) {

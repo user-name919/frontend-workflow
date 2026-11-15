@@ -2,6 +2,8 @@
  * Protocol simulation with a fake worker. This is not a live multi-agent host run.
  */
 import assert from 'node:assert/strict'
+import { inspectionDelivery } from './helpers/acceptance.mjs'
+import { captureVerificationSnapshot, recordCaseEvidence } from '../template/.ai-dev/scripts/lib/acceptance.mjs'
 import { cp, mkdtemp, mkdir, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -93,7 +95,7 @@ async function makeFeature() {
     title: 'E2E protocol',
   })
   await writeFile(path.join(featureDir, 'artifacts/analysis/intake.json'), `${JSON.stringify(intake(), null, 2)}\n`)
-  await writeFile(path.join(featureDir, 'artifacts/design/delivery.json'), `${JSON.stringify(delivery(), null, 2)}\n`)
+  await writeFile(path.join(featureDir, 'artifacts/design/delivery.json'), `${JSON.stringify(inspectionDelivery(delivery()), null, 2)}\n`)
   await writeFile(path.join(featureDir, 'artifacts/design/frontend-spec.md'), '# Spec\n\n## FR-1 retry\n\n## FR-2 form\n')
   await writeFile(path.join(featureDir, 'artifacts/design/implementation-plan.md'), '# Plan\n\n## T1 retry.js\n\n## T2 form.js\n')
   return { projectRoot, featureDir }
@@ -139,7 +141,7 @@ function passReport(request, extra = {}) {
 test('protocol simulation: two tasks, spec fail repair, stale report, BLOCKED resume, final human', async () => {
   const { featureDir, projectRoot } = await makeFeature()
   let status = await seedImplementing(featureDir)
-  const deliveryJson = delivery()
+  const deliveryJson = inspectionDelivery(delivery())
 
   let action = nextAction({ status, delivery: deliveryJson, capabilities: { freshContextDispatch: false } })
   assert.equal(action.type, 'dispatch_implementer')
@@ -154,6 +156,7 @@ test('protocol simulation: two tasks, spec fail repair, stale report, BLOCKED re
     expectedVersion: (await readFeature(featureDir)).control.version,
   })
   await writeFile(path.join(projectRoot, 'src/retry.js'), 'export function retry() { return true }\n')
+  const taskVer1 = await runVerification(featureDir, { scope: 'task', taskId: 'T1', attemptId: 'A1', checkId: 'T1-CHECK-0' })
   await acceptTaskResult(
     featureDir,
     {
@@ -163,7 +166,7 @@ test('protocol simulation: two tasks, spec fail repair, stale report, BLOCKED re
       status: 'DONE',
       summary: 'retry helper',
       changedFiles: ['src/retry.js'],
-      verificationIds: [],
+      verificationIds: [taskVer1.id],
       concerns: [],
       exportedInterfaces: [{ contract: 'retry(fn)' }],
     },
@@ -227,6 +230,7 @@ test('protocol simulation: two tasks, spec fail repair, stale report, BLOCKED re
     hostRunId: 'IMPL-2',
     expectedVersion: (await readFeature(featureDir)).control.version,
   })
+  const taskVer1b = await runVerification(featureDir, { scope: 'task', taskId: 'T1', attemptId: 'A2', checkId: 'T1-CHECK-0' })
   await acceptTaskResult(
     featureDir,
     {
@@ -236,7 +240,7 @@ test('protocol simulation: two tasks, spec fail repair, stale report, BLOCKED re
       status: 'DONE',
       summary: 'fixed retry',
       changedFiles: ['src/retry.js'],
-      verificationIds: [],
+      verificationIds: [taskVer1b.id],
       concerns: [],
       exportedInterfaces: [{ contract: 'retry(fn)' }],
     },
@@ -269,6 +273,7 @@ test('protocol simulation: two tasks, spec fail repair, stale report, BLOCKED re
     expectedVersion: (await readFeature(featureDir)).control.version,
   })
   await writeFile(path.join(projectRoot, 'src/form.js'), 'export function form() { return retry }\n')
+  const taskVer2 = await runVerification(featureDir, { scope: 'task', taskId: 'T2', attemptId: 'A1', checkId: 'T2-CHECK-0' })
   await acceptTaskResult(
     featureDir,
     {
@@ -278,7 +283,7 @@ test('protocol simulation: two tasks, spec fail repair, stale report, BLOCKED re
       status: 'DONE',
       summary: 'form',
       changedFiles: ['src/form.js'],
-      verificationIds: [],
+      verificationIds: [taskVer2.id],
       concerns: [],
     },
     { expectedVersion: (await readFeature(featureDir)).control.version },
@@ -307,8 +312,11 @@ test('protocol simulation: two tasks, spec fail repair, stale report, BLOCKED re
   action = nextAction({ status, delivery: deliveryJson })
   assert.equal(action.type, 'verify')
 
-  const ver1 = await runVerification(featureDir, { taskId: 'T1', commandIndex: 0 })
-  const ver2 = await runVerification(featureDir, { taskId: 'T2', commandIndex: 0 })
+  await mutateFeature(featureDir, { expectedVersion: (await readFeature(featureDir)).control.version, event: { type: 'test.verify', actor: 'fake-worker' } }, (draft) => { draft.state = 'VERIFYING' })
+  const ver1 = await runVerification(featureDir, { scope: 'feature', checkId: 'T1-CHECK-0' })
+  const ver2 = await runVerification(featureDir, { scope: 'feature', checkId: 'T2-CHECK-0' })
+  const candidate = await captureVerificationSnapshot(featureDir, deliveryJson)
+  for (const tc of deliveryJson.testCases) await recordCaseEvidence(featureDir, { caseId: tc.id, actor: 'protocol-sim', observation: 'Simulation fixture only', result: 'passed', evidenceRefs: ['test/workflow-e2e.test.mjs'], expectedSnapshotId: candidate.id, expectedVersion: (await readFeature(featureDir)).control.version })
   assert.equal(ver1.status, 'passed')
   assert.equal(ver2.status, 'passed')
 

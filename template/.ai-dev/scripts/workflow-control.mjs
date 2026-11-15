@@ -23,6 +23,8 @@ import {
 } from './lib/workflow-state.mjs'
 import { computeNext } from './lib/orchestrator.mjs'
 import { recoverReservation } from './lib/task-runs.mjs'
+import { acceptanceReadiness, recordCaseEvidence, refreshAcceptanceResults, captureVerificationSnapshot, loadAcceptance } from './lib/acceptance.mjs'
+import { recoverVerification } from './lib/verification.mjs'
 
 function usage() {
   return 'Usage: node .ai-dev/scripts/workflow-control.mjs <feature-dir> <migrate|inspect|next|transition|block|resume|approve|delegate|recover> [--request request.json]'
@@ -108,6 +110,19 @@ async function inspectFeature(featureDir) {
  */
 async function dispatch(featureDir, action, requestPath) {
   switch (action) {
+    case 'acceptance-status':
+      return acceptanceReadiness(featureDir)
+    case 'refresh-acceptance':
+      return refreshAcceptanceResults(featureDir)
+    case 'acceptance-snapshot': {
+      const { delivery } = await loadAcceptance(featureDir)
+      return captureVerificationSnapshot(featureDir, delivery)
+    }
+    case 'record-manual-check':
+    case 'record-case-evidence':
+      return recordCaseEvidence(featureDir, await loadRequest(requestPath, true))
+    case 'recover-verification':
+      return recoverVerification(featureDir, await loadRequest(requestPath, true))
     // inspect：不改盘，供主 Agent 判断要不要 migrate 或能否 next。
     case 'inspect':
       return inspectFeature(featureDir)

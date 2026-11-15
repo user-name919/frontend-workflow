@@ -1,0 +1,221 @@
+{
+  "scenario": "repair task A2 running with only A1 review",
+  "root": "/private/tmp/workflow-acceptance-8SZk3n",
+  "featureDir": "/private/tmp/workflow-acceptance-8SZk3n/.ai-dev/features/REQ-ACCEPTANCE",
+  "currentTask": {
+    "status": "running",
+    "reviewStatus": "passed",
+    "attemptId": "A2",
+    "fixRound": 2,
+    "hostRunId": "protocol-worker"
+  },
+  "finalReadiness": true,
+  "finalGate": {
+    "ok": true,
+    "errors": [],
+    "warnings": [],
+    "requiredInputs": [
+      "artifacts/design/技术方案-技术评审使用.md",
+      "artifacts/design/review-scheme-sync.json",
+      "artifacts/analysis/intake.json",
+      "artifacts/design/delivery.json",
+      "artifacts/coding-changes/changed-files.json",
+      "artifacts/coding-changes/changes.patch",
+      "artifacts/verification/verification.md",
+      "artifacts/verification/acceptance-results.json"
+    ]
+  },
+  "nextVerify": {
+    "type": "verify",
+    "featureId": "REQ-ACCEPTANCE",
+    "taskId": null,
+    "reason": "automated acceptance ready; transition to FINAL_REVIEW",
+    "inputPaths": [
+      "artifacts/verification/verification.md"
+    ],
+    "expectedVersion": 14,
+    "gate": null,
+    "capability": "assisted",
+    "acceptance": {
+      "ok": true,
+      "scope": "feature",
+      "checks": [
+        {
+          "checkId": "browser",
+          "runId": "ver-964d52af-b51b-4063-ba15-40c022b3ff83",
+          "status": "passed",
+          "cases": [
+            {
+              "caseId": "TC-1",
+              "environmentId": "mock",
+              "status": "passed",
+              "testId": "TC-1",
+              "file": "tests/cases.spec.mjs",
+              "errors": [],
+              "attempts": [
+                {
+                  "status": "passed",
+                  "retry": 0,
+                  "errors": []
+                }
+              ],
+              "context": {
+                "environmentId": "mock",
+                "baseURL": "http://127.0.0.1:3000",
+                "mockedRoutes": [
+                  "profile"
+                ],
+                "mockHits": {
+                  "profile": 1
+                }
+              }
+            }
+          ],
+          "rawReportPath": "revisions/verifications/ver-964d52af-b51b-4063-ba15-40c022b3ff83/raw-report.json"
+        },
+        {
+          "checkId": "lint",
+          "runId": "ver-82eb8ee3-191d-4d49-a8bf-5a8050ffae79",
+          "status": "passed",
+          "cases": [],
+          "rawReportPath": null
+        }
+      ],
+      "cases": [
+        {
+          "caseId": "TC-1",
+          "environmentId": "mock",
+          "method": "browser",
+          "status": "passed",
+          "runId": "ver-964d52af-b51b-4063-ba15-40c022b3ff83"
+        }
+      ],
+      "errors": []
+    }
+  },
+  "nextFinal": {
+    "type": "dispatch_reviewer",
+    "featureId": "REQ-ACCEPTANCE",
+    "taskId": null,
+    "reason": "final independent review of the full diff is required",
+    "inputPaths": [
+      "artifacts/design/delivery.json",
+      "artifacts/design/implementation-plan.md",
+      "artifacts/design/tasks.md",
+      "artifacts/design/traceability.md",
+      "artifacts/coding-changes/changes.patch",
+      "artifacts/verification/verification.md"
+    ],
+    "expectedVersion": 14,
+    "gate": "final",
+    "capability": "assisted"
+  }
+}
+{
+  "scenario": "A2 DONE awaits task review",
+  "currentTask": {
+    "status": "review_pending",
+    "attemptId": "A2",
+    "hostRunId": "protocol-worker",
+    "summary": "Protocol repair fixture",
+    "changedFiles": [
+      "app.js"
+    ],
+    "verificationIds": [
+      "ver-fe88f6c1-07a5-4553-b51e-78fc90cab011",
+      "ver-4d37039b-d54b-4dde-90b0-d1d04e5117ee"
+    ],
+    "concerns": [],
+    "requiredContext": [],
+    "exportedInterfaces": [],
+    "resultRef": "revisions/tasks/T1/A2/result.json",
+    "reasonCode": null
+  },
+  "lostFixRound": true,
+  "nextVerify": {
+    "type": "verify",
+    "featureId": "REQ-ACCEPTANCE",
+    "taskId": null,
+    "reason": "automated acceptance ready; transition to FINAL_REVIEW",
+    "inputPaths": [
+      "artifacts/verification/verification.md"
+    ],
+    "expectedVersion": 19,
+    "gate": null,
+    "capability": "assisted",
+    "acceptance": {
+      "ok": true,
+      "scope": "feature",
+      "checks": [
+        {
+          "checkId": "browser",
+          "runId": "ver-964d52af-b51b-4063-ba15-40c022b3ff83",
+          "status": "passed",
+          "cases": [
+            {
+              "caseId": "TC-1",
+              "environmentId": "mock",
+              "status": "passed",
+              "testId": "TC-1",
+              "file": "tests/cases.spec.mjs",
+              "errors": [],
+              "attempts": [
+                {
+                  "status": "passed",
+                  "retry": 0,
+                  "errors": []
+                }
+              ],
+              "context": {
+                "environmentId": "mock",
+                "baseURL": "http://127.0.0.1:3000",
+                "mockedRoutes": [
+                  "profile"
+                ],
+                "mockHits": {
+                  "profile": 1
+                }
+              }
+            }
+          ],
+          "rawReportPath": "revisions/verifications/ver-964d52af-b51b-4063-ba15-40c022b3ff83/raw-report.json"
+        },
+        {
+          "checkId": "lint",
+          "runId": "ver-82eb8ee3-191d-4d49-a8bf-5a8050ffae79",
+          "status": "passed",
+          "cases": [],
+          "rawReportPath": null
+        }
+      ],
+      "cases": [
+        {
+          "caseId": "TC-1",
+          "environmentId": "mock",
+          "method": "browser",
+          "status": "passed",
+          "runId": "ver-964d52af-b51b-4063-ba15-40c022b3ff83"
+        }
+      ],
+      "errors": []
+    }
+  },
+  "nextFinal": {
+    "type": "dispatch_reviewer",
+    "featureId": "REQ-ACCEPTANCE",
+    "taskId": null,
+    "reason": "final independent review of the full diff is required",
+    "inputPaths": [
+      "artifacts/design/delivery.json",
+      "artifacts/design/implementation-plan.md",
+      "artifacts/design/tasks.md",
+      "artifacts/design/traceability.md",
+      "artifacts/coding-changes/changes.patch",
+      "artifacts/verification/verification.md"
+    ],
+    "expectedVersion": 19,
+    "gate": "final",
+    "capability": "assisted"
+  }
+}
+Reproduced: old task review admits running repair; later-stage next skips task review; DONE drops fixRound.

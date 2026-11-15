@@ -1,5 +1,9 @@
 # Review Contract v1
 
+v1 保留供历史与普通静态审核读取；delivery v2 的 plan/task/final 使用 schemaVersion=2 的 packet/report。v2 沿用以下基本字段，并新增 packet.deliveryMaterialId（包内实际 delivery.json 材料 ID）；task 包还需 taskId。plan 检查覆盖每个 TC 的设计，task/final acceptance checks 必须有 caseId，方式与 delivery 中的用例一致（browser → test）。
+
+v2 测试型 acceptance 的 pass 报告同时提供 execution 和 `verificationRef:{caseId,runId,recordMaterialId,outputMaterialId}`；后两项为包内 verification 材料，分别指向当前 run 的 record.json 与 raw-report.json。不能使用其他用例、其他运行、整体退出码或无映射规则代替。运行记录与包指纹会校验；工作流接收时再按最新运行与源码快照复查。
+
 Node >=18。以下 JSON 是最小静态审核示例，路径和观察必须替换为真实材料；不可直接作为成功证明。
 
 ## packet.json

@@ -1,0 +1,4 @@
+node_modules/
+.ai-dev/
+test-results/
+playwright-report/

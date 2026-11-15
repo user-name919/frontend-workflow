@@ -62,7 +62,8 @@ function mapChecks(packet, report, request) {
       (defined?.method === 'test' && (stage === 'task' || stage === 'final')
         ? 'TEST-EVIDENCE'
         : RULE_BY_KIND[stage]?.[defined?.kind] || check.checkId)
-    const current = byRule.get(ruleId) || { ruleId, result: 'pass', evidence: [] }
+    const current = byRule.get(ruleId) || { ruleId, result: 'pass', evidence: [], verificationRefs: [] }
+    if (check.verificationRef) current.verificationRefs.push(check.verificationRef)
     if (check.result === 'fail' || current.result === 'fail') current.result = 'fail'
     else if (check.result === 'unknown' && current.result !== 'fail') current.result = 'not_run'
     const evidence = (check.evidence || []).map((item) => `${item.materialId}:${item.location}`)
@@ -75,20 +76,19 @@ function mapChecks(packet, report, request) {
   for (const ruleId of required) {
     const mapped = byRule.get(ruleId)
     if (mapped) {
-      checks.push({ ruleId, result: resultOf(mapped.result), evidence: mapped.evidence })
+      checks.push({ ruleId, result: resultOf(mapped.result), evidence: mapped.evidence, verificationRefs: mapped.verificationRefs })
       used.add(ruleId)
     } else {
-      const fallback = [...byRule.values()][0]
       checks.push({
         ruleId,
-        result: fallback ? resultOf(fallback.result) : 'not_run',
-        evidence: fallback?.evidence || ['adapter:no-direct-packet-check'],
+        result: 'not_run',
+        evidence: ['adapter:no-direct-packet-check'],
       })
     }
   }
   for (const [ruleId, mapped] of byRule) {
     if (used.has(ruleId) || required.includes(ruleId)) continue
-    checks.push({ ruleId, result: resultOf(mapped.result), evidence: mapped.evidence })
+    checks.push({ ruleId, result: resultOf(mapped.result), evidence: mapped.evidence, verificationRefs: mapped.verificationRefs })
   }
   return checks
 }

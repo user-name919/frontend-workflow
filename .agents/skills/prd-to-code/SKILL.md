@@ -21,7 +21,7 @@ Find the repository root, then read `.ai-dev/workflow.md` and `.ai-dev/constitut
 10. Infer framework, versions, package manager, commands, and conventions from that repository's own evidence. Never require a predefined project profile.
 11. Implement only approved tasks. Keep changes surgical and preserve the pre-existing changes recorded when the feature was initialized.
 12. After code changes, run `node .ai-dev/scripts/record-code-changes.mjs <feature-dir> <file...>` with only the files affected by this requirement. Use `coding-changes/coding` as a live code index and `changes.patch` as the durable snapshot.
-13. Run approved `delivery.verify` commands via `run-verification.mjs`. Do not mark passed unless the command actually ran with exit 0 and the source snapshot stayed fresh. Then refresh `verification.md`.
+13. Use sibling `acceptance-testing` during spec/plan to define source-backed delivery v2 cases. Run task verifyIds with scope=task and current attemptId before DONE; in VERIFYING run every finalCheckId with scope=feature on the final candidate. Per-case raw reports, observed environment and fresh inputs are required, not just exit 0. Read `.ai-dev/acceptance-testing.md` for schema, migration and manual evidence. Refresh the derived results and re-seal changed review evidence.
 14. Never commit, merge, push, open a PR, deploy, or modify external systems unless the user explicitly requests that separate action.
 15. Node never calls Task/spawn. The host must. A task `pass` emits `review.passed` and the main agent continues. `needs_human` is shown to the user. See `references/review-authority.md`.
 

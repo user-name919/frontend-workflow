@@ -1,0 +1,54 @@
+{
+  "reviewerId": "/root/acceptance_implementation_review",
+  "reviewId": "ACCEPTANCE-IMPLEMENTATION",
+  "reviewedSnapshotDigest": "1c646212cc41a0d8ffa447e7a4a40dd8317bd4a8184f69e8c3c885b58d8b694e",
+  "status": "findings for implementer; new runtime evidence must be sealed before report acceptance",
+  "findings": [
+    {
+      "id": "F1", "checkId": "C-R2", "severity": "major", "action": "repair",
+      "file": "template/.ai-dev/scripts/lib/gates.mjs", "line": 283,
+      "message": "Reject a running repair attempt even when the previous attempt had passed review.",
+      "trigger": "Run all feature checks after an accepted T1/A1; prepare/start T1/A2. startTask preserves A1 reviewStatus=passed while setting status=running and attemptId=A2. evaluateGate('final', {includeManual:false}) then returns ok=true before A2 is DONE or reviewed.",
+      "impact": "The FINAL_REVIEW admission gate can open while the repair worker is active. The old attempt's review is treated as current task completion.",
+      "evidence": ["reproduce-lifecycle.mjs", "reproduce-lifecycle.log"],
+      "relatedLocations": ["template/.ai-dev/scripts/lib/task-runs.mjs:129-135", "docs/plans/2026-11-15-requirement-acceptance-testing.md:313-320"]
+    },
+    {
+      "id": "F2", "checkId": "C-R7", "severity": "major", "action": "repair",
+      "file": "template/.ai-dev/scripts/lib/orchestrator.mjs", "line": 286,
+      "message": "Route unresolved repair tasks and their independent reviews before feature acceptance in late stages.",
+      "trigger": "Complete a repair attempt in VERIFYING with all its checks passed. The ledger correctly becomes review_pending, but nextAction returns verify with a transition-to-FINAL_REVIEW reason. With the same task state in FINAL_REVIEW, it returns dispatch_reviewer for gate=final and taskId=null.",
+      "impact": "The coordinator never dispatches the required task re-review in these states and can advance toward final review while the task has unresolved review work; this is the loop prohibited by proposal section 7.2.",
+      "evidence": ["reproduce-lifecycle.mjs", "reproduce-lifecycle.log"],
+      "relatedLocations": ["template/.ai-dev/scripts/lib/orchestrator.mjs:293-310"]
+    },
+    {
+      "id": "F3", "checkId": "C-R7", "severity": "major", "action": "repair",
+      "file": "template/.ai-dev/scripts/lib/task-runs.mjs", "line": 213,
+      "message": "Preserve the repair budget when replacing the current task result.",
+      "trigger": "A task with fixRound=2 starts A2, runs both required checks and submits DONE. acceptTaskResult replaces taskResults[T1] without fixRound; the recorded value becomes undefined.",
+      "impact": "Subsequent acceptReview defaults the missing counter to zero, so the configured maxFixRounds can be bypassed through normal repair attempts.",
+      "evidence": ["reproduce-lifecycle.mjs", "reproduce-lifecycle.log"],
+      "relatedLocations": ["template/.ai-dev/scripts/lib/reviews.mjs:308-312", "template/.ai-dev/scripts/lib/reviews.mjs:382-384"]
+    },
+    {
+      "id": "F4", "checkId": "C-R7", "severity": "major", "action": "repair",
+      "file": "template/.ai-dev/scripts/lib/verification.mjs", "line": 126,
+      "message": "Persist and apply the repair budget for test-triggered repairs, separately from reviewer findings.",
+      "trigger": "A feature check fails and is repeatedly repaired/rerun without an intervening independent review. runVerification only persists verification records and refreshes results; no failure repair count is incremented or maxFixRounds consulted. VERIFYING nextAction continues to return verify indefinitely.",
+      "impact": "The exact test-driven failure path introduced by this change has no persistent bounded repair loop, contrary to proposal section 7.2; existing review-only counters do not cover it.",
+      "evidence": [],
+      "relatedLocations": ["template/.ai-dev/scripts/lib/verification.mjs:22-43", "template/.ai-dev/scripts/lib/verification.mjs:126-154", "template/.ai-dev/scripts/lib/orchestrator.mjs:286-292"]
+    },
+    {
+      "id": "F5", "checkId": "pending phase-aware check from section 5.2", "severity": "major", "action": "repair",
+      "file": "template/.ai-dev/scripts/lib/delivery.mjs", "line": 318,
+      "message": "Render the spec acceptance view without requiring the later plan's cases, checks and environments.",
+      "trigger": "A v2 delivery with confirmed ACs and verification=test passes validateDelivery(...,{phase:'spec'}), while tasks/testCases/checks/environments are intentionally still unset. renderDelivery revalidates with hard-coded phase='plan' and throws INVALID_DELIVERY, including MISSING_CASES and MISSING_VERIFICATION_INPUTS. renderFeatureArtifacts({phase:'spec'}) also calls this hard-coded path.",
+      "impact": "A valid spec-stage definition cannot generate the required acceptance.md until plan-stage details are prematurely filled, defeating the explicit stage-specific completeness rule.",
+      "evidence": ["reproduce-spec-render.mjs", "reproduce-spec-render.log"],
+      "relatedLocations": ["template/.ai-dev/scripts/render-artifacts.mjs:79-96", "template/.ai-dev/scripts/lib/acceptance-plan.mjs:24", "docs/plans/2026-11-15-requirement-acceptance-testing.md:171-177"]
+    }
+  ],
+  "limitations": ["P5 real-business repository pilot excluded as instructed.", "No production access, dependency installation or real human approvals.", "Reproducers use isolated temporary protocol fixtures; they do not claim browser semantic validation.", "No formal final report accepted yet; findings require implementation correction and fresh sealed packet review."]
+}

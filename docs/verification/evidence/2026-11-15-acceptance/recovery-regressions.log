@@ -1,0 +1,16 @@
+✔ task repair/review takes precedence in both verification and final review (0.687334ms)
+✔ task fix rounds survive starting and accepting the next attempt (3940.741792ms)
+✔ durable task result after a ledger interruption is accepted without replaying checks (2488.145292ms)
+✔ final repair accounting cannot be reset by a fresh request with fixRound=0 (1767.363292ms)
+✔ test failures persist a repair budget without an intervening review (2201.071958ms)
+✔ DONE becomes review_pending; replay is idempotent; late old attempt is rejected (2462.497084ms)
+✔ business-conflict concerns escalate; extra files do not block accept (3165.822875ms)
+✔ inspect does not replay commands; recover requires worker stopped confirmation (929.572667ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10468.969375

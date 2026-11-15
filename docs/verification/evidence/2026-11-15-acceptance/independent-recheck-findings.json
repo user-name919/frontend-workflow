@@ -1,0 +1,26 @@
+{
+  "reviewerId": "/root/acceptance_implementation_review",
+  "snapshotDigest": "68f51407fe16c2b99a435b5a334415861913837bc6b4fa4d74b0b55fd241ddbb",
+  "closedFindings": ["F1", "F2", "F3", "F4", "F5"],
+  "independentExecution": {
+    "command": "TMPDIR=/private/tmp node --test test/acceptance-repair.test.mjs test/acceptance-control.test.mjs test/acceptance.test.mjs",
+    "exitCode": 0,
+    "passed": 12,
+    "failed": 0,
+    "output": "repair-regressions-independent.log"
+  },
+  "findings": [{
+    "id": "F6",
+    "checkId": "C-R7",
+    "severity": "major",
+    "action": "repair",
+    "file": "template/.ai-dev/scripts/lib/task-runs.mjs",
+    "line": 129,
+    "message": "Do not inherit the previous attempt's resultRef into a new repair attempt.",
+    "trigger": "A2 submits DONE, receives a revise report, and A3 starts. A3 stops before submitting a result. startTask spreads A2's resultRef into A3; recoverReservation clears activeTaskId but only resets the task if !current.resultRef, so A3 stays running and points at A2/result.json.",
+    "impact": "The documented interrupted repair recovery leaves a stopped task permanently running and removes the pointer needed for another recover call. Coordinator next continues to say the old worker is running instead of restarting the repair.",
+    "evidence": ["reproduce-repair-recovery.mjs", "reproduce-repair-recovery.log"],
+    "relatedLocations": ["template/.ai-dev/scripts/lib/task-runs.mjs:315-322"]
+  }],
+  "status": "New evidence must be registered and resealed before final report acceptance. No tracked files changed by reviewer."
+}

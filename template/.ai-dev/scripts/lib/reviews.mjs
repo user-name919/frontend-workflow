@@ -13,6 +13,7 @@ import { decideReviewAction } from './review-loop.mjs'
 import { buildReviewSummary, renderReviewSummaryMarkdown } from './review-summary.mjs'
 import { mutateFeature, readFeature, StoreError } from './workspace-store.mjs'
 import { readSnapshot, verifySnapshot } from './snapshots.mjs'
+import { assertAcceptanceReady, loadAcceptance } from './acceptance.mjs'
 
 const VERDICTS = new Set(['pass', 'revise', 'needs_human'])
 const DIM = new Set(['pass', 'fail', 'not_run'])
@@ -115,6 +116,9 @@ export function validateReview(report, context = {}) {
       seen.add(check.ruleId)
       if (!CHECK_RESULTS.has(check.result)) {
         errors.push(err('INVALID_CHECK_RESULT', `Invalid check result for ${check.ruleId}`))
+      }
+      if (report.verdict === 'pass' && requiredRuleIds.includes(check.ruleId) && check.result !== 'pass') {
+        errors.push(err('REQUIRED_RULE_NOT_PASSED', `${check.ruleId} lacks a direct passing result`))
       }
       if (!Array.isArray(check.evidence)) {
         errors.push(err('MISSING_EVIDENCE', `check ${check.ruleId} requires evidence array`))
@@ -278,6 +282,18 @@ export async function acceptReview(featureDir, report, options = {}) {
       `expectedVersion ${expectedVersion} does not match disk version ${status.control.version}`,
     )
   }
+  if (report.verdict === 'pass' && DUAL_GATES.has(report.gate)) {
+    const { delivery } = await loadAcceptance(resolved)
+    if (delivery.schemaVersion === 2) {
+      const readiness = await assertAcceptanceReady(resolved, report.gate === 'task'
+        ? { scope: 'task', taskId: report.taskId, attemptId: status.runtime?.taskResults?.[report.taskId]?.attemptId }
+        : { scope: 'feature' })
+      const refs = report.checks.flatMap((check) => check.result === 'pass' ? check.verificationRefs || [] : [])
+      for (const tc of readiness.cases.filter((item) => item.method === 'browser')) {
+        if (!refs.some((ref) => ref.caseId === tc.caseId && ref.runId === tc.runId && ref.outputMaterialId && ref.recordMaterialId)) throw new StoreError('MISSING_VERIFICATION_REF', `${tc.caseId}: independent review must directly reference the current run`)
+      }
+    }
+  }
 
   const snapshot = options.snapshot || (await readSnapshot(resolved, report.snapshotId))
   const freshness = await verifySnapshot(resolved, snapshot)
@@ -289,9 +305,12 @@ export async function acceptReview(featureDir, report, options = {}) {
 
   const stored = await persistReport(resolved, report)
   const currentTask = status.runtime?.taskResults?.[report.taskId] || {}
+  const key = report.gate === 'task' ? `task:${report.taskId}` : report.gate
+  if (stored.duplicate && status.reviews?.[key]?.reportRef === stored.relative) return status
+  const fixRound = Math.max(Number.isInteger(request.fixRound) ? request.fixRound : 0, currentTask.fixRound || 0, status.reviews?.[key]?.fixRound || 0)
   const decision = decideReviewAction({
     report,
-    fixRound: Number.isInteger(request.fixRound) ? request.fixRound : currentTask.fixRound || 0,
+    fixRound,
     maxFixRounds: status.policy?.maxFixRounds || 3,
   })
   const summary = buildReviewSummary(report, { decision })
@@ -300,15 +319,6 @@ export async function acceptReview(featureDir, report, options = {}) {
   const summaryMdRel = path.relative(resolved, path.join(summaryDir, 'summary.md'))
   await writeFile(path.join(resolved, summaryJsonRel), `${JSON.stringify(summary, null, 2)}\n`)
   await writeFile(path.join(resolved, summaryMdRel), renderReviewSummaryMarkdown(summary))
-
-  if (stored.duplicate) {
-    const existing = status.reviews?.[report.gate]
-    if (existing?.reportRef === stored.relative) {
-      return status
-    }
-  }
-
-  const key = report.gate === 'task' ? `task:${report.taskId}` : report.gate
 
   return mutateFeature(
     resolved,
@@ -325,6 +335,8 @@ export async function acceptReview(featureDir, report, options = {}) {
           reportRef: stored.relative,
           summaryRef: summaryMdRel,
           reviewEvent: summary.event.type,
+          reviewDecision: decision.action,
+          evidenceChanged: false,
         },
       },
     },
@@ -341,8 +353,11 @@ export async function acceptReview(featureDir, report, options = {}) {
           independence: report.reviewer.independence,
           acceptedAt: new Date().toISOString(),
           definitionRevision: draft.consistency?.revision ?? 0,
+          fixRound: fixRound + (decision.action === 'repair' ? 1 : 0),
           summaryRef: summaryMdRel,
           reviewEvent: summary.event.type,
+          reviewDecision: decision.action,
+          evidenceChanged: false,
         },
       }
       if (report.gate === 'task' && report.taskId) {
@@ -361,7 +376,7 @@ export async function acceptReview(featureDir, report, options = {}) {
           nextTask.status = 'passed'
         } else if (decision.action === 'repair' || decision.action === 'collect_evidence') {
           nextTask.status = 'repairing'
-          if (decision.action === 'repair') nextTask.fixRound = (current.fixRound || 0) + 1
+          if (decision.action === 'repair') nextTask.fixRound = fixRound + 1
         } else if (decision.action === 'ask_human') {
           nextTask.status = 'blocked'
           nextTask.reasonCode = 'NEEDS_HUMAN'

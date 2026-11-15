@@ -159,8 +159,8 @@ export function evaluateTransition(status, to) {
   return { ok: errors.length === 0, errors }
 }
 
-async function assertGate(featureDir, gate) {
-  const result = await evaluateGate(featureDir, gate)
+async function assertGate(featureDir, gate, options = {}) {
+  const result = await evaluateGate(featureDir, gate, options)
   if (!result.ok) {
     const error = new StoreError(
       'GATE_FAILED',
@@ -216,8 +216,10 @@ export async function transitionFeature(featureDir, to, options = {}) {
   }
 
   const requiredGate = GATE_REQUIRED_BEFORE_ENTERING[to]
-  if (requiredGate) {
-    await assertGate(featureDir, requiredGate)
+  if (to === 'FINAL_REVIEW') {
+    await assertGate(featureDir, 'final', { includeManual: false })
+  } else if (requiredGate) {
+    await assertGate(featureDir, requiredGate, { requireReview: to === 'COMPLETE' })
   }
 
   return mutateFeature(
@@ -378,7 +380,7 @@ export async function recordHumanApproval(featureDir, options = {}) {
     )
   }
 
-  await assertGate(featureDir, gate)
+  await assertGate(featureDir, gate, { requireReview: gate === 'final' })
 
   const snapshot = await captureSnapshot(featureDir, {
     gate,

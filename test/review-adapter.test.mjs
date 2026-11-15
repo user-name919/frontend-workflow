@@ -88,6 +88,8 @@ test('adapted pass still does not authorize a gate by itself', async () => {
   assert.equal(adapted.authorizesGate, false)
   assert.equal(adapted.workflowReport.verdict, 'pass')
   assert.equal(adapted.workflowReport.reviewer.independence, 'independent')
+  assert.equal(adapted.workflowReport.checks.find((check) => check.ruleId === 'TEST-EVIDENCE').result, 'not_run')
+  assert.equal(adapted.workflowValidation.ok, false)
   assert.equal(
     gateAuthorized({ policy: { mode: 'strict' }, approvals: {} }, 'spec', adapted.workflowReport),
     false,

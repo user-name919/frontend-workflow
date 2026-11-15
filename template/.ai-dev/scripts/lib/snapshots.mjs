@@ -39,6 +39,7 @@ const GATE_INPUTS = {
     'artifacts/design/traceability.md',
   ],
   final: [
+    'artifacts/verification/acceptance-results.json',
     'artifacts/design/技术方案-技术评审使用.md',
     'artifacts/design/review-scheme-sync.json',
     'artifacts/analysis/intake.json',
@@ -113,8 +114,8 @@ export async function computeProjectDigest(projectRoot) {
   }
 
   const head = (await git(projectRoot, 'rev-parse', 'HEAD')).toString('utf8').trim()
-  const trackedDiff = await git(projectRoot, 'diff', '--binary', '--no-ext-diff', 'HEAD')
-  const stagedDiff = await git(projectRoot, 'diff', '--binary', '--cached', '--no-ext-diff')
+  const trackedDiff = await git(projectRoot, 'diff', '--binary', '--no-ext-diff', 'HEAD', '--', '.', ':(exclude).ai-dev')
+  const stagedDiff = await git(projectRoot, 'diff', '--binary', '--cached', '--no-ext-diff', '--', '.', ':(exclude).ai-dev')
 
   const untrackedList = (
     await execFile('git', ['ls-files', '--others', '--exclude-standard', '-z'], {
@@ -310,7 +311,7 @@ export async function verifySnapshot(featureDir, snapshot) {
     const liveProjectInputs = (snapshot.inputs || []).some(
       (item) => item.space === 'project' && item.freshness === 'live',
     )
-    if (liveProjectInputs || snapshot.gate === 'final' || snapshot.taskId) {
+    if (snapshot.projectDigest || liveProjectInputs || snapshot.gate === 'final' || snapshot.taskId) {
       const currentDigest = await computeProjectDigest(projectRoot)
       if (!currentDigest) {
         changes.push({ space: 'project', path: '.', reason: 'projectDigest unavailable' })
