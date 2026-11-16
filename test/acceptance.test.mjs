@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { acceptanceFixture, playwrightReport } from './helpers/acceptance.mjs'
+import { acceptanceFixture, playwrightReport, observedEvidence, manualReason } from './helpers/acceptance.mjs'
 import { validateDelivery } from '../template/.ai-dev/scripts/lib/delivery.mjs'
 import { draftDeliveryUpgrade } from '../template/.ai-dev/scripts/lib/acceptance-plan.mjs'
 import { acceptanceReadiness, recordCaseEvidence, captureVerificationSnapshot, writeJsonAtomic } from '../template/.ai-dev/scripts/lib/acceptance.mjs'
@@ -84,13 +84,13 @@ test('manual evidence is separate, candidate-bound, and never an approval', asyn
   f.delivery.acceptance.push({ id: 'AC-M', requirementIds: ['FR-1'], given: 'profile', when: 'human reads', then: 'copy confirmed', verification: 'manual' })
   f.delivery.tasks[0].acceptanceIds.push('AC-M')
   f.delivery.links.push({ requirementId: 'FR-1', acceptanceId: 'AC-M', taskId: 'T1' })
-  f.delivery.testCases.push({ id: 'TC-M', acceptanceIds: ['AC-M'], method: 'manual', environmentId: 'mock', requiredAt: ['feature'], preconditions: ['current profile'], steps: ['read copy'], expectations: [{ id: 'M1', observable: 'ui', expected: 'copy approved' }] })
+  f.delivery.testCases.push({ id: 'TC-M', acceptanceIds: ['AC-M'], method: 'manual', manualReason, environmentId: 'mock', requiredAt: ['feature'], preconditions: ['current profile'], steps: ['read copy'], expectations: [{ id: 'M1', observable: 'ui', expected: 'copy approved' }] })
   await save(f)
   const automatic = await run(f)
   await run(f, 'lint')
   assert.equal((await acceptanceReadiness(f.featureDir, { includeManual: false })).ok, true)
   assert.equal((await acceptanceReadiness(f.featureDir)).ok, false)
-  const request = { caseId: 'TC-M', actor: 'test-human', observation: 'Protocol simulation only', result: 'passed', confirmationRef: 'test-message-1', expectedSnapshotId: automatic.inputSnapshotId, expectedVersion: (await readFeature(f.featureDir)).control.version }
+  const request = { ...observedEvidence(f.delivery.testCases.find(tc => tc.id === 'TC-M')), caseId: 'TC-M', actor: 'test-human', observation: 'Protocol simulation only', result: 'passed', confirmationRef: 'test-message-1', expectedSnapshotId: automatic.inputSnapshotId, expectedVersion: (await readFeature(f.featureDir)).control.version }
   await assert.rejects(() => recordCaseEvidence(f.featureDir, { ...request, confirmationRef: null }), { code: 'MISSING_CONFIRMATION' })
   await recordCaseEvidence(f.featureDir, request)
   assert.equal((await acceptanceReadiness(f.featureDir)).ok, true)

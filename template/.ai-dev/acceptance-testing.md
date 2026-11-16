@@ -2,6 +2,8 @@
 
 使用同级安装的 `acceptance-testing` Skill。状态链和人工审批权限保持原样：spec 定义 AC，plan 补用例和执行入口；任务测试在 DONE 交审前运行；最终候选整单重跑在 VERIFYING；FINAL_REVIEW 核对原文、结果及人工项。
 
+项目启动、可选依赖应用、URL 参数、登录和数据准备见 [项目运行上下文](test-runtime.md)。所有通过记录须覆盖逐条前提与预期；旧的仅一句 passed、登录确认或缺数据记录需要保留并补测。browser-json 支持可重复 ego-browser 测试，和 Playwright 一样属于 browser 证据。
+
 方案阶段用 `render-artifacts.mjs <feature-dir> --phase spec` 生成 AC 视图，不要求未来的测试文件/运行配置已齐备，也不覆盖任务视图。计划阶段使用默认 plan 完整校验。没有活动 feature 的纯用例设计可先输出标注待补字段的草案，不能把草案当成可准入 delivery。
 
 ## delivery v2
@@ -12,7 +14,7 @@
 - `testCases[]`：id、acceptanceIds、method（`browser|manual|inspection`）、environmentId、requiredAt（至少 `feature`，可加 `task:T1`）、preconditions、steps、expectations。expectations 每项含 id、observable（ui/network/navigation/storage/document）、expected。browser 另含 dataRef、implementation.file/testId；contract-mock 用例含 mockRuleIds。
 - `verification.inputs[]`：确认需求/契约的本地文件或摘录，`{space:"project"|"feature",path:"相对路径"}`；禁止输出目录作为输入。外部文件先保存授权可读的本地副本并在 intake 留来源。
 - `verification.environments[]`：id、kind（local/contract-mock/live-test）、setup、reset、inputs（配置/fixture 路径）。browser 环境另需 baseURL、Playwright projectName、contract `{path,sha256}`。mock 环境还需 mocks `[{id,method,url,fixture}]`。路径均相对真实项目；凭据只引用项目已有安全配置，不写令牌。
-- `verification.checks[]`：id、kind（engineering/acceptance）、command、args、cwd、environmentId、caseIds。acceptance 必须 `report:"playwright-json"`，engineering 不能替代业务用例。
+- `verification.checks[]`：id、kind（engineering/acceptance）、command、args、cwd、environmentId、caseIds。acceptance 使用 `report:"playwright-json"` 或 `"browser-json"`，engineering 不能替代业务用例。
 - `tasks[].verifyIds` 引用 checks；v2 不再内嵌 verify。`verification.finalCheckIds` 定义最终候选必跑集，必须覆盖全部自动化业务用例。
 - 原有 tasks/links 不变。测试、配置和 fixture 按原任务规则登记文件。计划允许 create，执行时文件必须存在。task 阶段只要求当前检查涉及的测试实现存在，跨任务流程在 feature 执行。
 

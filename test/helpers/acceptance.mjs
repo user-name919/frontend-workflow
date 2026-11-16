@@ -5,6 +5,15 @@ import { execFileSync } from 'node:child_process'
 import { createFeatureWorkspace } from '../../template/.ai-dev/scripts/init-change.mjs'
 import { digest, writeJsonAtomic } from '../../template/.ai-dev/scripts/lib/acceptance.mjs'
 
+export const manualReason = { category: 'human-judgment', reason: 'Human copy judgment in a protocol fixture', sourceRefs: ['prd.md'] }
+export function observedEvidence(tc, confirmationRef = 'test-message-1') {
+  return {
+    preconditionResults: tc.preconditions.map((_, index) => ({ index, result: 'met', observation: 'Synthetic protocol precondition, not business evidence' })),
+    expectationResults: tc.expectations.map(e => ({ id: e.id, result: 'passed', observation: 'Synthetic protocol assertion, not business evidence', evidenceRefs: ['app.js'] })),
+    ...(tc.method === 'manual' ? { confirmation: { kind: 'acceptance', actor: 'simulated-human', sourceRef: confirmationRef, quote: 'Protocol fixture confirms all declared expectations', caseId: tc.id, expectationIds: tc.expectations.map(e => e.id) } } : {}),
+  }
+}
+
 // Protocol fixtures explicitly use inspection. These are not browser acceptance claims.
 export function inspectionDelivery(old) {
   const delivery = structuredClone(old)
@@ -29,7 +38,7 @@ export function playwrightReport(root, ids = ['TC-1'], overrides = {}) {
     config: { rootDir: root }, errors: [],
     suites: [{ title: 'cases', specs: ids.map((id) => ({ title: `[${id}] behavior`, file: 'tests/cases.spec.mjs', tests: [{
       projectName: 'mock', expectedStatus: 'passed', status: 'expected', annotations: [],
-      results: [{ status: 'passed', retry: 0, attachments: [{ name: 'acceptance-context', contentType: 'application/json', body: Buffer.from(JSON.stringify({ environmentId: 'mock', baseURL: 'http://127.0.0.1:3000', mockedRoutes: ['profile'], mockHits: { profile: 1 } })).toString('base64') }], ...overrides }],
+      results: [{ status: 'passed', retry: 0, attachments: [{ name: 'acceptance-context', contentType: 'application/json', body: Buffer.from(JSON.stringify({ environmentId: 'mock', baseURL: 'http://127.0.0.1:3000', mockedRoutes: ['profile'], mockHits: { profile: 1 }, preconditionResults: [{ index: 0, result: 'met', observation: 'Synthetic fixture' }], expectationResults: [{ id: 'E1', result: 'passed', observation: 'Synthetic reporter assertion' }] })).toString('base64') }], ...overrides }],
     }] })) }],
   }
 }

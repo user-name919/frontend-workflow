@@ -287,7 +287,7 @@ export async function acceptReview(featureDir, report, options = {}) {
     if (delivery.schemaVersion === 2) {
       const readiness = await assertAcceptanceReady(resolved, report.gate === 'task'
         ? { scope: 'task', taskId: report.taskId, attemptId: status.runtime?.taskResults?.[report.taskId]?.attemptId }
-        : { scope: 'feature' })
+        : { scope: 'feature', includeManual: false })
       const refs = report.checks.flatMap((check) => check.result === 'pass' ? check.verificationRefs || [] : [])
       for (const tc of readiness.cases.filter((item) => item.method === 'browser')) {
         if (!refs.some((ref) => ref.caseId === tc.caseId && ref.runId === tc.runId && ref.outputMaterialId && ref.recordMaterialId)) throw new StoreError('MISSING_VERIFICATION_REF', `${tc.caseId}: independent review must directly reference the current run`)

@@ -41,6 +41,7 @@ export function validateAcceptancePlan(delivery, phase = 'plan') {
     if (!['local', 'contract-mock', 'live-test'].includes(env.kind)) add('INVALID_ENVIRONMENT', `${env.id}: kind must be local|contract-mock|live-test`)
     if (!text(env.setup) || !text(env.reset)) add('MISSING_ENVIRONMENT_SETUP', `${env.id}: setup and reset instructions are required`)
     if (!Array.isArray(env.inputs) || !env.inputs.length || env.inputs.some((item) => !relative(item))) add('INVALID_ENVIRONMENT_INPUTS', `${env.id}: inputs must include config/fixture files`)
+    if (env.runtime && (!relative(env.runtime.file) || !text(env.runtime.profile))) add('INVALID_RUNTIME', `${env.id}: runtime requires a project file and profile`)
     if (env.kind !== 'local' && (!text(env.baseURL) || !text(env.projectName))) add('MISSING_BROWSER_ENVIRONMENT', `${env.id}: baseURL and Playwright projectName required`)
     const mocks = list(env.mocks)
     ids(mocks, `${env.id}.mocks`)
@@ -72,10 +73,14 @@ export function validateAcceptancePlan(delivery, phase = 'plan') {
     for (const expectation of list(tc.expectations)) {
       if (!text(expectation?.id) || !text(expectation.expected) || !['ui', 'network', 'navigation', 'storage', 'document'].includes(expectation.observable)) add('INVALID_EXPECTATION', `${tc.id}: expected observable result required`)
     }
+    ids(tc.expectations, `${tc.id}.expectations`)
+    if (tc.method === 'inspection' && list(tc.expectations).some(e => e.observable !== 'document')) add('STATIC_AS_RUNTIME', `${tc.id}: inspection only proves document/source facts; UI/network behavior needs execution`)
+    if (tc.method === 'manual' && (!['human-judgment', 'physical-device', 'external-action'].includes(tc.manualReason?.category) || !text(tc.manualReason?.reason) || !list(tc.manualReason?.sourceRefs).length)) add('MANUAL_REASON_REQUIRED', `${tc.id}: justify why this expectation needs a human; missing test tooling is not a reason`)
     if (tc.method === 'browser') {
       if (!relative(tc.implementation?.file) || !text(tc.implementation?.testId)) add('MISSING_TEST_IMPLEMENTATION', `${tc.id}: file and stable testId required`)
       if (!relative(tc.dataRef)) add('MISSING_TEST_DATA', `${tc.id}: dataRef required`)
       const env = environments.find((item) => item.id === tc.environmentId)
+      if (env?.runtime && (!text(tc.entry?.id) || !tc.entry?.bindings || typeof tc.entry.bindings !== 'object')) add('MISSING_ENTRY', `${tc.id}: runtime cases need entry.id and bindings (may be empty)`)
       if (env?.kind === 'local') add('INVALID_BROWSER_ENVIRONMENT', `${tc.id}: use contract-mock or live-test`)
       for (const id of list(tc.mockRuleIds)) {
         if (!list(env?.mocks).some((mock) => mock.id === id)) add('UNKNOWN_MOCK', `${tc.id}: unknown mock ${id}`)
@@ -90,7 +95,7 @@ export function validateAcceptancePlan(delivery, phase = 'plan') {
     if (!['engineering', 'acceptance'].includes(check.kind) || !text(check.command) || !Array.isArray(check.args) || check.args.some((arg) => typeof arg !== 'string')) add('INVALID_CHECK', `${check.id}: kind, command and string args required`)
     if (check.cwd && check.cwd !== '.' && !relative(check.cwd)) add('PATH_ESCAPE', `${check.id}: cwd must stay inside project`)
     if (!environmentIds.has(check.environmentId)) add('UNKNOWN_ENVIRONMENT', `${check.id}: unknown environment`)
-    if (check.kind === 'acceptance' && (check.report !== 'playwright-json' || !list(check.caseIds).length)) add('MISSING_CASE_REPORT', `${check.id}: full playwright-json report and caseIds required`)
+    if (check.kind === 'acceptance' && (!['playwright-json', 'browser-json'].includes(check.report) || !list(check.caseIds).length)) add('MISSING_CASE_REPORT', `${check.id}: full supported browser report and caseIds required`)
     if (check.kind === 'engineering' && list(check.caseIds).length) add('ENGINEERING_AS_ACCEPTANCE', `${check.id}: engineering checks cannot prove cases`)
     for (const id of list(check.caseIds)) {
       const tc = cases.find((item) => item.id === id)

@@ -12,5 +12,5 @@ test('[TC-LIVE] real request follows the confirmed demo contract', async ({ page
   expect(Number.isInteger(body.revision), 'E-LIVE-REVISION-CONTRACT').toBe(true)
   await expect(page.locator('#status')).toHaveText('success')
   await expect(page.locator('#data'), 'E-LIVE-UI-RESPONSE').toHaveText(JSON.stringify(body, null, 2))
-  await testInfo.attach('acceptance-context', { contentType: 'application/json', body: Buffer.from(JSON.stringify({ environmentId: process.env.WORKFLOW_ENVIRONMENT_ID || 'live', baseURL, mockedRoutes: [], mockHits: {}, backendIdentity: response.headers()['x-demo-backend'] })) })
+  await testInfo.attach('acceptance-context', { contentType: 'application/json', body: Buffer.from(JSON.stringify({ environmentId: process.env.WORKFLOW_ENVIRONMENT_ID || 'live', baseURL, mockedRoutes: [], mockHits: {}, backendIdentity: response.headers()['x-demo-backend'], preconditionResults: [{ index: 0, result: 'met', observation: `Actual backend header=${response.headers()['x-demo-backend']}` }], expectationResults: [{ id: 'E1', result: 'passed', observation: `HTTP ${response.status()}, returned revision=${body.revision}, UI matched exact response after click` }] })) })
 })

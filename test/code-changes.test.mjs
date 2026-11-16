@@ -92,3 +92,20 @@ test('rejects paths outside the recorded real project', async () => {
     /must stay inside the project/
   )
 })
+
+test('Chinese paths are recognized as declared and workflow artifacts stay excluded', async () => {
+  const f=await makeFeature()
+  await mkdir(path.join(f.projectRoot,'.rag-context'))
+  await writeFile(path.join(f.projectRoot,'.rag-context/需求 摘要.md'),'已确认的需求上下文')
+  await writeFile(path.join(f.projectRoot,'.ai-dev/中文材料.md'),'工作流派生材料')
+  const manifest=await recordCodeChanges(f.featureDir,['src/modified.js','src/new.js','src/deleted.js','src/preexisting.js','.rag-context/需求 摘要.md'])
+  assert.deepEqual(manifest.undeclaredChanges,[])
+  assert.ok(manifest.files.some(file=>file.path==='.rag-context/需求 摘要.md'))
+})
+
+test('declaring only the new rename path cannot silently omit deletion of the old path', async () => {
+  const f=await makeFeature()
+  await git(f.projectRoot,'mv','src/modified.js','src/重命名 文件.js')
+  const manifest=await recordCodeChanges(f.featureDir,['src/重命名 文件.js','src/new.js','src/deleted.js','src/preexisting.js'])
+  assert.deepEqual(manifest.undeclaredChanges,['src/modified.js'])
+})

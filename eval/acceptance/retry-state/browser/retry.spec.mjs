@@ -24,9 +24,10 @@ test.beforeEach(async ({ page }) => {
   registered.push('profile')
   await page.goto('/')
 })
-test.afterEach(async ({ baseURL }, testInfo) => {
+test.afterEach(async ({ baseURL, page }, testInfo) => {
   release?.()
-  await testInfo.attach('acceptance-context', { contentType: 'application/json', body: Buffer.from(JSON.stringify({ environmentId: process.env.WORKFLOW_ENVIRONMENT_ID || 'mock', baseURL, mockedRoutes: registered, mockHits: { profile: hits }, requests })) })
+  const state = await page.locator('#status').textContent().catch(() => 'unavailable')
+  await testInfo.attach('acceptance-context', { contentType: 'application/json', body: Buffer.from(JSON.stringify({ environmentId: process.env.WORKFLOW_ENVIRONMENT_ID || 'mock', baseURL, mockedRoutes: registered, mockHits: { profile: hits }, requests, preconditionResults: [{ index: 0, result: registered.includes('profile') ? 'met' : 'unmet', observation: `profile route registered; observed hits=${hits}` }], expectationResults: [{ id: 'E1', result: testInfo.status === 'passed' ? 'passed' : 'failed', observation: `Assertions in ${testInfo.title}; observed final UI state=${state}; requests=${hits}` }] })) })
 })
 const status = (page) => page.locator('#status')
 const load = (page) => page.getByRole('button', { name: '加载', exact: true })

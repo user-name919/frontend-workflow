@@ -197,6 +197,24 @@ export async function validateReport(p,r,root) {
     }
     if(c.result==='pass' && required.method==='manual' && !text(c.confirmationRef))
       error(errors,'MISSING_CONFIRMATION',c.checkId)
+    if(p.schemaVersion===2 && ['task','final'].includes(p.stage) && c.result==='pass' && required.caseId && required.method!=='test') {
+      const material=p.materials.find(m=>m.id===c.caseEvidenceMaterialId && m.role==='verification')
+      try {
+        if(!material) throw new Error('Case observation record is required')
+        const observed=JSON.parse(await readFile(path.join(root,material.path),'utf8'))
+        const deliveryMaterial=p.materials.find(m=>m.id===p.deliveryMaterialId)
+        const delivery=JSON.parse(await readFile(path.join(root,deliveryMaterial.path),'utf8'))
+        const tc=delivery.testCases.find(item=>item.id===required.caseId)
+        if(!tc || observed.caseId!==tc.id || observed.method!==tc.method || observed.result!=='passed') throw new Error('Wrong case observation identity')
+        const pre=observed.preconditionResults || [], expectations=observed.expectationResults || []
+        if(pre.length!==tc.preconditions.length || new Set(pre.map(x=>x.index)).size!==pre.length || tc.preconditions.some((_,i)=>!pre.some(x=>x.index===i && x.result==='met' && text(x.observation)))) throw new Error('Every precondition requires a met observation')
+        if(expectations.length!==tc.expectations.length || new Set(expectations.map(x=>x.id)).size!==expectations.length || tc.expectations.some(e=>!expectations.some(x=>x.id===e.id && x.result==='passed' && text(x.observation) && (tc.method!=='inspection' || x.evidenceRefs?.length)))) throw new Error('Every expectation requires passing evidence')
+        if(tc.method==='manual') {
+          const confirmation=observed.confirmation
+          if(confirmation?.kind!=='acceptance' || confirmation.caseId!==tc.id || !text(confirmation.actor) || !text(confirmation.sourceRef) || confirmation.sourceRef!==observed.confirmationRef || confirmation.sourceRef!==c.confirmationRef || !text(confirmation.quote) || tc.expectations.some(e=>!confirmation.expectationIds?.includes(e.id))) throw new Error('Complete, explicit acceptance confirmation is required')
+        }
+      } catch(e) { error(errors,'INCOMPLETE_CASE_EVIDENCE',c.checkId+': '+e.message) }
+    }
   }
   for(const required of p.checks) if(!seen.has(required.id)) error(errors,'MISSING_CHECK',required.id)
   for(const f of findings) {

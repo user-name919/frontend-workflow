@@ -4,7 +4,7 @@ import test from 'node:test'
 import path from 'node:path'
 import { writeFile } from 'node:fs/promises'
 import { execFileSync } from 'node:child_process'
-import { acceptanceFixture } from './helpers/acceptance.mjs'
+import { acceptanceFixture, observedEvidence, manualReason } from './helpers/acceptance.mjs'
 import { writeReviewScheme } from './helpers/review-scheme.mjs'
 import { renderFeatureArtifacts } from '../template/.ai-dev/scripts/render-artifacts.mjs'
 import { runVerification } from '../template/.ai-dev/scripts/lib/verification.mjs'
@@ -30,7 +30,7 @@ test('CLI cannot skip acceptance; automatic readiness permits manual review and 
   f.delivery.acceptance.push({ id: 'AC-M', requirementIds: ['FR-1'], given: 'current candidate', when: 'human reads copy', then: 'copy confirmed', verification: 'manual' })
   f.delivery.tasks[0].acceptanceIds.push('AC-M')
   f.delivery.links.push({ requirementId: 'FR-1', acceptanceId: 'AC-M', taskId: 'T1' })
-  f.delivery.testCases.push({ id: 'TC-M', acceptanceIds: ['AC-M'], method: 'manual', environmentId: 'mock', requiredAt: ['feature'], preconditions: ['current candidate'], steps: ['read copy'], expectations: [{ id: 'E1', observable: 'ui', expected: 'copy confirmed' }] })
+  f.delivery.testCases.push({ id: 'TC-M', acceptanceIds: ['AC-M'], method: 'manual', manualReason, environmentId: 'mock', requiredAt: ['feature'], preconditions: ['current candidate'], steps: ['read copy'], expectations: [{ id: 'E1', observable: 'ui', expected: 'copy confirmed' }] })
   await writeJsonAtomic(path.join(f.featureDir, 'artifacts/design/delivery.json'), f.delivery)
   await writeFile(path.join(f.featureDir, 'artifacts/design/frontend-spec.md'), '# Spec\nFR-1 AC-1 AC-M\n')
   await writeFile(path.join(f.featureDir, 'artifacts/design/implementation-plan.md'), '# Plan\nApply confirmed behavior.\n')
@@ -57,7 +57,7 @@ test('CLI cannot skip acceptance; automatic readiness permits manual review and 
   assert.equal((await readFeature(f.featureDir)).state, 'FINAL_REVIEW')
   await assert.rejects(() => recordHumanApproval(f.featureDir, { gate: 'final', actor: 'simulated-human', decisionRef: 'test-message', expectedVersion: (0) }), { code: 'VERSION_CONFLICT' })
   await assert.rejects(async () => recordHumanApproval(f.featureDir, { gate: 'final', actor: 'simulated-human', decisionRef: 'test-message', expectedVersion: (await readFeature(f.featureDir)).control.version }), (error) => error.errors.some((item) => item.code === 'CASE_EVIDENCE_REQUIRED'))
-  await recordCaseEvidence(f.featureDir, { caseId: 'TC-M', actor: 'simulated-human', observation: 'Protocol confirmation fixture', result: 'passed', confirmationRef: 'test-message-2', expectedSnapshotId: browser.inputSnapshotId, expectedVersion: (await readFeature(f.featureDir)).control.version })
+  await recordCaseEvidence(f.featureDir, { ...observedEvidence(f.delivery.testCases.find(tc => tc.id === 'TC-M'), 'test-message-2'), caseId: 'TC-M', actor: 'simulated-human', observation: 'Protocol confirmation fixture', result: 'passed', confirmationRef: 'test-message-2', expectedSnapshotId: browser.inputSnapshotId, expectedVersion: (await readFeature(f.featureDir)).control.version })
   await syncResults(f.featureDir)
   await assert.rejects(async () => recordHumanApproval(f.featureDir, { gate: 'final', actor: 'simulated-human', decisionRef: 'test-final', expectedVersion: (await readFeature(f.featureDir)).control.version }), (error) => error.errors.some((item) => item.code === 'FINAL_REVIEW_REQUIRED'))
   const snapshot = await captureSnapshot(f.featureDir, { gate: 'final' })

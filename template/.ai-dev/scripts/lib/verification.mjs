@@ -9,7 +9,7 @@ import { validateDelivery } from './delivery.mjs'
 import { mutateFeature, readFeature, StoreError } from './workspace-store.mjs'
 import { currentTraceId, startActivity } from './monitor-events.mjs'
 import { captureVerificationSnapshot, digest, jsonBytes, loadAcceptance, refreshAcceptanceResults, validateVerificationRecord, writeJsonAtomic } from './acceptance.mjs'
-import { readEvidenceFile, readPlaywrightReport } from './verification-report.mjs'
+import { readEvidenceFile, readAcceptanceReport } from './verification-report.mjs'
 
 const execFile = promisify(execFileCallback)
 
@@ -36,7 +36,7 @@ async function registerRun(featureDir, record, expectedVersion, actor) {
     if (record.schemaVersion === 2 && previousRun?.status === 'running' && record.status !== 'running') {
       const key = `${record.scope}:${record.taskId || 'feature'}:${record.checkId}`
       const previousFailures = draft.runtime.verificationRepairs?.[key]?.consecutiveFailures || 0
-      const consecutiveFailures = record.status === 'passed' ? 0 : previousFailures + 1
+      const consecutiveFailures = record.status === 'passed' ? 0 : record.status === 'blocked' ? previousFailures : previousFailures + 1
       draft.runtime.verificationRepairs = { ...draft.runtime.verificationRepairs, [key]: {
         scope: record.scope, taskId: record.taskId, checkId: record.checkId,
         consecutiveFailures, fixRound: Math.max(0, consecutiveFailures - 1), lastRunId: record.id,
@@ -114,6 +114,10 @@ export async function runVerification(featureDir, input = {}) {
       env: { ...process.env, ...(v2 ? {
         WORKFLOW_VERIFICATION_DIR: outDir, WORKFLOW_ENVIRONMENT_ID: environment.id,
         WORKFLOW_BASE_URL: environment.baseURL || '',
+        WORKFLOW_RUN_ID: id,
+        WORKFLOW_FEATURE_DIR: resolved,
+        WORKFLOW_INPUT_SNAPSHOT: before.id,
+        WORKFLOW_JSON_OUTPUT_FILE: path.join(outDir, 'raw-report.json'),
         PLAYWRIGHT_JSON_OUTPUT_FILE: path.join(outDir, 'raw-report.json'),
         PLAYWRIGHT_HTML_OUTPUT_DIR: path.join(outDir, 'html'),
       } : {}) },
@@ -138,12 +142,14 @@ export async function runVerification(featureDir, input = {}) {
   if (record.rawReportPath) {
     try {
       const report = JSON.parse(await readEvidenceFile(resolved, record.rawReportPath))
-      const parsed = await readPlaywrightReport(report, { check, cases: delivery.testCases, environment, projectRoot, outputDir: outDir })
+      const parsed = await readAcceptanceReport(report, { check, cases: delivery.testCases, environment, projectRoot, outputDir: outDir })
       record.cases = parsed.cases
       record.reportErrors = parsed.errors
       evidencePaths.push(record.rawReportPath, ...parsed.evidencePaths.map((file) => path.relative(resolved, path.join(outDir, file))))
       if (parsed.errors.length) {
-        record.status = parsed.cases.some((tc) => tc.status === 'flaky') ? 'flaky' : 'failed'
+        record.status = parsed.cases.some((tc) => tc.status === 'failed') || parsed.globalErrors?.length || record.timedOut ? 'failed'
+          : parsed.cases.some((tc) => tc.status === 'flaky') ? 'flaky'
+            : parsed.cases.some((tc) => tc.status === 'blocked') ? 'blocked' : 'failed'
         record.summary = parsed.errors.join('; ')
       }
     } catch (error) {

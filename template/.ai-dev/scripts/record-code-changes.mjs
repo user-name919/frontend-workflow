@@ -170,13 +170,25 @@ export async function recordCodeChanges(rawFeatureDir, rawPaths, options = {}) {
 
   // Detect dirty paths vs base that were not declared in rawPaths (final must not silently drop them).
   const declared = new Set(uniquePaths.map((file) => file.relative))
-  const porcelain = await git(projectRoot, 'status', '--porcelain=v1', '--untracked-files=all')
+  const porcelain = await git(projectRoot, 'status', '--porcelain=v1', '-z', '--untracked-files=all')
   const undeclaredChanges = []
-  for (const line of porcelain.split('\n').filter(Boolean)) {
-    const relative = line.slice(3).split(path.sep).join('/')
-    if (!relative || relative.startsWith('.ai-dev/') || declared.has(relative)) continue
-    if (initialPaths.has(relative)) continue
-    undeclaredChanges.push(relative)
+  // NUL 分隔保留中文、空格和换行路径；普通输出的 Git 引号会误报已声明文件。
+  const entries = porcelain.split('\0')
+  for (let index = 0; index < entries.length; index++) {
+    const line = entries[index]
+    if (!line) continue
+    const relatives = [line.slice(3)]
+    if (/[RC]/.test(line.slice(0, 2))) {
+      const previous = entries[++index]
+      // rename 的旧路径代表删除，也必须入账；copy 不改变原文件。
+      if (line.slice(0, 2).includes('R')) relatives.push(previous)
+    }
+    for (const raw of relatives) {
+      const relative = (raw || '').split(path.sep).join('/')
+      if (!relative || relative.startsWith('.ai-dev/') || declared.has(relative)) continue
+      if (initialPaths.has(relative)) continue
+      if (!undeclaredChanges.includes(relative)) undeclaredChanges.push(relative)
+    }
   }
 
   const manifest = {

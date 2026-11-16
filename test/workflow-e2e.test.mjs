@@ -1,3 +1,4 @@
+import { observedEvidence } from './helpers/acceptance.mjs'
 /**
  * Protocol simulation with a fake worker. This is not a live multi-agent host run.
  */
@@ -316,7 +317,7 @@ test('protocol simulation: two tasks, spec fail repair, stale report, BLOCKED re
   const ver1 = await runVerification(featureDir, { scope: 'feature', checkId: 'T1-CHECK-0' })
   const ver2 = await runVerification(featureDir, { scope: 'feature', checkId: 'T2-CHECK-0' })
   const candidate = await captureVerificationSnapshot(featureDir, deliveryJson)
-  for (const tc of deliveryJson.testCases) await recordCaseEvidence(featureDir, { caseId: tc.id, actor: 'protocol-sim', observation: 'Simulation fixture only', result: 'passed', evidenceRefs: ['test/workflow-e2e.test.mjs'], expectedSnapshotId: candidate.id, expectedVersion: (await readFeature(featureDir)).control.version })
+  for (const tc of deliveryJson.testCases) await recordCaseEvidence(featureDir, { ...observedEvidence(tc), caseId: tc.id, actor: 'protocol-sim', observation: 'Simulation fixture only', result: 'passed', evidenceRefs: ['test/workflow-e2e.test.mjs'], expectedSnapshotId: candidate.id, expectedVersion: (await readFeature(featureDir)).control.version })
   assert.equal(ver1.status, 'passed')
   assert.equal(ver2.status, 'passed')
 

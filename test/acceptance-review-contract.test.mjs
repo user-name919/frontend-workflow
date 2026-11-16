@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import path from 'node:path'
-import { realpath } from 'node:fs/promises'
+import { realpath, writeFile } from 'node:fs/promises'
 import { acceptanceFixture } from './helpers/acceptance.mjs'
 import { runVerification } from '../template/.ai-dev/scripts/lib/verification.mjs'
 import { sealPacket, verifyPacket, validateReport } from '../.agents/skills/prepare-review/scripts/review-contract.mjs'
+import { observedEvidence } from './helpers/acceptance.mjs'
 
 test('v2 review binds a case to actual record and output materials, with no method substitution', async () => {
   const f = await acceptanceFixture()
@@ -32,4 +33,22 @@ test('v2 review binds a case to actual record and output materials, with no meth
   substitution.checks[0].caseId = 'other-case'
   const missing = await verifyPacket(await sealPacket(substitution, f.root), f.root)
   assert.ok(missing.some((error) => error.code === 'UNCOVERED_CASE'))
+})
+
+test('independent review rejects partial manual observations and login-only confirmations', async () => {
+  const f=await acceptanceFixture()
+  const tc={id:'M',method:'manual',preconditions:['current candidate','reference design available'],expectations:[{id:'layout'},{id:'brand'}]}
+  await writeFile(path.join(f.root,'manual-delivery.json'),JSON.stringify({schemaVersion:2,testCases:[tc]}))
+  const record={caseId:'M',method:'manual',result:'passed',confirmationRef:'explicit-acceptance',...observedEvidence(tc,'explicit-acceptance')}
+  const packet={schemaVersion:2,reviewId:'MANUAL',stage:'final',implementerId:'author',snapshot:{digest:'snapshot'},deliveryMaterialId:'D',materials:[{id:'P',path:'prd.md',role:'requirement'},{id:'D',path:'manual-delivery.json',role:'implementation'},{id:'E',path:'manual.json',role:'verification'}],requirements:[{id:'FR-1',text:'Visual review',status:'confirmed',basis:['P']}],checks:[{id:'C',kind:'acceptance',caseId:'M',method:'manual',requirementIds:['FR-1'],basis:['P'],scenario:'Review candidate',expected:'Human confirms layout and brand'}],questions:[]}
+  const report={schemaVersion:2,reviewId:'MANUAL',summary:'Synthetic protocol fixture',snapshotDigest:'snapshot',independence:'independent',reviewerId:'reviewer',verdict:'pass',checks:[{checkId:'C',result:'pass',confirmationRef:'explicit-acceptance',caseEvidenceMaterialId:'E',evidence:[{materialId:'E',location:'M',observation:'Every visual expectation explicitly accepted'}]}],findings:[]}
+  await writeFile(path.join(f.root,'manual.json'),JSON.stringify(record))
+  let sealed=await sealPacket(packet,f.root);report.snapshotDigest=sealed.snapshot.digest
+  assert.deepEqual(await validateReport(sealed,report,f.root),[])
+  for(const mutate of [r=>r.preconditionResults.pop(),r=>r.expectationResults.pop(),r=>delete r.expectationResults[0].observation,r=>delete r.confirmation.actor,r=>r.confirmation.kind='login']) {
+    const copy=structuredClone(record);mutate(copy)
+    await writeFile(path.join(f.root,'manual.json'),JSON.stringify(copy))
+    sealed=await sealPacket(packet,f.root);report.snapshotDigest=sealed.snapshot.digest
+    assert.ok((await validateReport(sealed,report,f.root)).some(e=>e.code==='INCOMPLETE_CASE_EVIDENCE'))
+  }
 })

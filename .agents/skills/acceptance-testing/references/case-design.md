@@ -15,3 +15,5 @@ Each expectation needs a precise observable (`ui`, `network`, `navigation`, `sto
 Use repository code to locate page, route, selectors, client timeout and existing test setup. Do not copy the implementation's conditions into an independent “expected” function. Assert user-visible behavior and contract effects, with web-first waiting. Data initialization may bypass the UI; the behavior under acceptance may not.
 
 For coverage review give the reviewer original PRD/decisions/contracts and versions, delivery, then tests. The reviewer first enumerates confirmed behaviors independently, compares omissions/contradictions, and checks that assertions can distinguish a plausible wrong implementation. Report uncertainty rather than a percentage that implies semantic completeness.
+
+Split materially different assertions into expectation IDs and distinct data scenarios (populated, empty, fault). Require the specific record state and account access, not merely any valid-looking ID. Map path/query/hash inputs to sourced fixture or query outputs; never invent IDs. A deliberate missing/invalid parameter is test input, not a reason for the common setup to skip the negative test.

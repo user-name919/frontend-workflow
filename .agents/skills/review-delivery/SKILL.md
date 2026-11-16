@@ -54,3 +54,7 @@ WORKFLOW_SKILL_RUN_ID=<id> node .ai-dev/scripts/workflow-control.mjs <feature-di
 ```
 
 Use the same explicit environment value when starting a nested skill observation. This establishes an Agent-reported parent relationship; never infer a relationship solely from timing. These records are Agent-reported, not proof of host-level skill execution. If the script is absent or writing is not allowed, continue without recording; never expand permissions or claim an observation was captured. A read-only reviewer must not write the observation.
+
+## 运行前提与验收证据
+
+对 delivery v2，检查项目运行配置、用例入口绑定和实际环境证据。无测试框架不能直接把页面行为全部分配给人工；manualReason 必须有具体来源。inspection 仅证明静态文档/源码事实，不能证明 network/ui 预期。浏览器报告必须覆盖每个前提和 expectation ID；缺数据、有数据分支未执行、仅检查 maxlength 属性等均不能通过完整行为断言。必测项缺证据应 needs_evidence/退回补测，不能降为 minor 后整体通过。登录或扫码记录不等于人工验收确认；核对 confirmation 中的实际验收原话、用例和预期范围。Agent 浏览器操作使用真实报告，不能登记为用户确认。

@@ -5,7 +5,9 @@ import path from 'node:path'
 import { validateDelivery } from './delivery.mjs'
 import { captureSnapshot, readSnapshot, verifySnapshot } from './snapshots.mjs'
 import { readFeature, mutateFeature, StoreError } from './workspace-store.mjs'
-import { readEvidenceFile, readPlaywrightReport } from './verification-report.mjs'
+import { readEvidenceFile, readAcceptanceReport } from './verification-report.mjs'
+import { observedCaseErrors } from './case-evidence.mjs'
+import { loadTestRuntime } from './test-runtime.mjs'
 import { markArtifactChanged, resolveArtifacts } from '../update-consistency.mjs'
 import { recordArtifactDigest } from './consistency.mjs'
 
@@ -39,6 +41,8 @@ export async function captureVerificationSnapshot(featureDir, delivery, { taskId
   const selectedCases = taskId ? (delivery.testCases || []).filter((tc) => tc.requiredAt.includes(`task:${taskId}`) || selectedChecks.some((check) => check.caseIds?.includes(tc.id))) : delivery.testCases || []
   const selectedEnvironments = (delivery.verification?.environments || []).filter((env) => !taskId || selectedChecks.some((check) => check.environmentId === env.id) || selectedCases.some((tc) => tc.environmentId === env.id))
   for (const environment of selectedEnvironments) {
+    const runtime = await loadTestRuntime(status.project.root, environment)
+    if (runtime) for (const file of [runtime.file, ...(runtime.profile.inputs || [])]) inputs.push({ space: 'project', path: file })
     for (const file of [...(environment.inputs || []), environment.contract?.path, ...(environment.mocks || []).map((mock) => mock.fixture)].filter(Boolean)) inputs.push({ space: 'project', path: file })
     if (environment.contract) {
       const bytes = await readEvidenceFile(status.project.root, environment.contract.path)
@@ -66,7 +70,8 @@ export async function validateVerificationRecord(featureDir, ref, delivery, { re
     if (!recover && digest(bytes) !== ref.recordDigest) throw new Error('record bytes differ from ledger')
     const record = JSON.parse(bytes)
     if (record.schemaVersion !== 2 || record.id !== ref.id || record.checkId !== ref.checkId || record.scope !== ref.scope || record.taskId !== ref.taskId || record.attemptId !== ref.attemptId) throw new Error('wrong run identity or legacy record')
-    if (record.status !== 'passed' || record.exitCode !== 0 || record.timedOut) return { ok: false, record, reason: record.status || 'interrupted' }
+    const passing = record.status === 'passed' && record.exitCode === 0 && !record.timedOut
+    if (!passing && (record.status !== 'blocked' || record.timedOut)) return { ok: false, record, reason: record.status || 'interrupted' }
     const snapshotBytes = await readEvidenceFile(featureDir, `revisions/snapshots/${record.inputSnapshotId}.json`)
     if (digest(snapshotBytes) !== record.snapshotDigest) throw new Error('snapshot bytes changed')
     const snapshot = JSON.parse(snapshotBytes)
@@ -80,20 +85,22 @@ export async function validateVerificationRecord(featureDir, ref, delivery, { re
     if (check.kind === 'acceptance') {
       if (!record.files.some((file) => file.path === record.rawReportPath)) throw new Error('raw report fingerprint missing')
       const report = JSON.parse(await readEvidenceFile(featureDir, record.rawReportPath))
-      const parsed = await readPlaywrightReport(report, {
+      const parsed = await readAcceptanceReport(report, {
         check, cases: delivery.testCases,
         environment: delivery.verification.environments.find((env) => env.id === check.environmentId),
         projectRoot: (await readFeature(featureDir)).project.root,
         outputDir: path.dirname(path.join(featureDir, record.rawReportPath)),
       })
-      if (parsed.errors.length) throw new Error(parsed.errors.join('; '))
+      if (record.status === 'blocked') {
+        if (parsed.globalErrors?.length || !parsed.cases.some(tc => tc.status === 'blocked') || parsed.cases.some(tc => !['passed','blocked'].includes(tc.status))) throw new Error('Blocked report contains failures or invalid evidence')
+      } else if (parsed.errors.length) throw new Error(parsed.errors.join('; '))
       for (const file of parsed.evidencePaths) {
         const relative = path.join(path.dirname(record.rawReportPath), file)
         if (!record.files.some((item) => item.path === relative)) throw new Error(`attachment fingerprint missing: ${file}`)
       }
       if (JSON.stringify(parsed.cases) !== JSON.stringify(record.cases)) throw new Error('case summary differs from raw report')
     }
-    return { ok: true, record }
+    return passing ? { ok: true, record } : { ok: false, record, reason: 'blocked' }
   } catch (error) {
     return { ok: false, reason: `invalid_evidence: ${error.message}` }
   }
@@ -129,7 +136,8 @@ export async function acceptanceReadiness(featureDir, options = {}) {
   for (const tc of delivery.testCases.filter((item) => item.requiredAt.includes(scope === 'task' ? `task:${options.taskId}` : 'feature'))) {
     if (tc.method === 'browser') {
       const owner = checks.find((check) => check.status === 'passed' && check.cases.some((item) => item.caseId === tc.id))
-      cases.push({ caseId: tc.id, environmentId: tc.environmentId, method: tc.method, status: owner ? 'passed' : 'not_verified', runId: owner?.runId || null })
+      const blocked = checks.find(check => check.status === 'blocked' && check.cases.some(item => item.caseId === tc.id && item.status === 'blocked'))
+      cases.push({ caseId: tc.id, environmentId: tc.environmentId, method: tc.method, status: owner ? 'passed' : blocked ? 'blocked' : 'not_verified', runId: owner?.runId || blocked?.runId || null })
       if (!owner) add('CASE_NOT_VERIFIED', tc.id)
       continue
     }
@@ -141,9 +149,9 @@ export async function acceptanceReadiness(featureDir, options = {}) {
       record = JSON.parse(bytes)
       const snapshot = await readSnapshot(featureDir, record.snapshotId)
       valid = digest(bytes) === ref.recordDigest && record.caseId === tc.id && record.method === tc.method && record.result === 'passed' && (await verifySnapshot(featureDir, snapshot)).fresh
-      if (tc.method === 'manual') valid &&= Boolean(record.confirmationRef)
+      valid &&= observedCaseErrors(tc, record).length === 0
     } catch { /* Missing manual/inspection evidence stays pending. */ }
-    cases.push({ caseId: tc.id, environmentId: tc.environmentId, method: tc.method, status: valid ? 'passed' : 'pending', recordRef: ref?.recordRef || null })
+    cases.push({ caseId: tc.id, environmentId: tc.environmentId, method: tc.method, status: valid ? 'passed' : record?.result === 'blocked' ? 'blocked' : 'pending', recordRef: ref?.recordRef || null })
     if (!valid && (tc.method !== 'manual' || options.includeManual !== false)) add('CASE_EVIDENCE_REQUIRED', tc.id)
   }
   return { ok: errors.length === 0, scope, checks, cases, errors }
@@ -184,15 +192,17 @@ export async function recordCaseEvidence(featureDir, input) {
   const { status, delivery } = await loadAcceptance(featureDir)
   const tc = delivery.testCases?.find((item) => item.id === input.caseId)
   if (!tc || !['manual', 'inspection'].includes(tc.method)) throw new StoreError('INVALID_CASE', 'Only declared manual/inspection cases accept observed evidence')
-  if (!input.actor || !input.observation || !input.expectedSnapshotId || !['passed', 'failed'].includes(input.result) || !Number.isInteger(input.expectedVersion)) throw new StoreError('INVALID_REQUEST', 'actor, observation, expectedSnapshotId, result and expectedVersion required')
-  if (tc.method === 'manual' && !input.confirmationRef) throw new StoreError('MISSING_CONFIRMATION', 'Record the actual human confirmation reference')
+  if (!input.actor || !input.observation || !input.expectedSnapshotId || !['passed', 'failed', 'blocked'].includes(input.result) || !Number.isInteger(input.expectedVersion)) throw new StoreError('INVALID_REQUEST', 'actor, observation, expectedSnapshotId, result and expectedVersion required')
+  if (tc.method === 'manual' && input.result === 'passed' && (!input.confirmationRef || input.confirmation?.kind !== 'acceptance')) throw new StoreError('MISSING_CONFIRMATION', 'Record the actual acceptance confirmation; login/setup consent does not qualify')
   if (tc.method === 'inspection' && !input.evidenceRefs?.length) throw new StoreError('MISSING_EVIDENCE', 'Inspection needs concrete evidence references')
+  const evidenceErrors = observedCaseErrors(tc, input)
+  if (evidenceErrors.length) throw new StoreError('INCOMPLETE_CASE_EVIDENCE', evidenceErrors.join('; '))
   if (status.control.version !== input.expectedVersion) throw new StoreError('VERSION_CONFLICT', 'Reload status before recording evidence')
   if (status.state === 'COMPLETE') throw new StoreError('COMPLETE_IS_HISTORY', 'Do not rewrite completed work')
   const expected = await readSnapshot(featureDir, input.expectedSnapshotId)
   const current = await captureVerificationSnapshot(featureDir, delivery)
   if (!(await verifySnapshot(featureDir, expected)).fresh || expected.projectDigest?.digest !== current.projectDigest.digest || JSON.stringify(expected.inputs) !== JSON.stringify(current.inputs)) throw new StoreError('STALE_SNAPSHOT', 'Confirmation must identify the current verification candidate')
-  const record = { caseId: tc.id, method: tc.method, actor: input.actor, result: input.result, observation: input.observation, confirmationRef: input.confirmationRef || null, evidenceRefs: input.evidenceRefs || [], snapshotId: current.id, recordedAt: new Date().toISOString() }
+  const record = { caseId: tc.id, method: tc.method, actor: input.actor, result: input.result, observation: input.observation, confirmationRef: input.confirmationRef || null, confirmation: input.confirmation || null, preconditionResults: input.preconditionResults || [], expectationResults: input.expectationResults || [], evidenceRefs: input.evidenceRefs || [], snapshotId: current.id, recordedAt: new Date().toISOString() }
   const recordRef = `revisions/verifications/manual-${randomUUID()}/record.json`
   await writeJsonAtomic(path.join(featureDir, recordRef), record)
   const next = await mutateFeature(featureDir, { expectedVersion: input.expectedVersion, event: { type: 'verification.observe', actor: input.actor, data: { caseId: tc.id, result: input.result } } }, (draft) => {
