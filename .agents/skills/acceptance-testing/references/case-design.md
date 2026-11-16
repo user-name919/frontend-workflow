@@ -2,6 +2,8 @@
 
 Begin with a source inventory: requirement section, confirmed behavior, unresolved choice and implementation scope. Generate a small behavior table before scripts. For each included behavior, state precondition/data, user action, observable result and the source that authorizes that result. Link it to existing FR/AC IDs; keep test case IDs stable across reruns.
 
+Separate stable IDs from readable names: `id: "TC-RECOVER"` can have `title: "请求失败后重试，展示新资料"`. Use the user's working language for titles, conditions, steps and expectations. Plan which actual values the script will collect for a readable observation: request count, displayed content, error text and current state. A translated claim of success without those observations is still insufficient evidence.
+
 Review applicable dimensions: success, pending, legitimate empty data, failure, recovery, boundaries, repeated actions and concurrency. This is a set of questions, not permission to invent requirements. A stated count or threshold needs below/at/above cases when those boundaries change behavior. Record why a dimension is inapplicable when that decision affects coverage.
 
 Examples:

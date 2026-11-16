@@ -29,7 +29,7 @@ test('new runs bind visual evidence, retain reports and expose human-readable pr
   assert.match(index, /工程检查（不计业务用例）/)
   assert.match(index, /未执行/)
   assert.deepEqual(events.map(e => e.phase), ['start','finish'])
-  assert.match(formatVerificationProgress(events[0]), /最终候选版本.*Mock.*1 个业务用例/)
+  assert.match(formatVerificationProgress(events[0]), /最终候选版本.*契约模拟接口.*1 个业务用例/)
   assert.match(formatVerificationProgress(events[1]), /通过 1.*失败 0/)
   assert.ok(formatVerificationProgress(events[1]).includes(path.join(f.featureDir, record.reportPath)))
   await writeFile(path.join(f.featureDir, 'revisions/verifications', record.id, image.path), 'changed')
@@ -50,6 +50,31 @@ test('missing screenshots reject a new passing run without rewriting legacy repo
   const report = await readFile(path.join(f.featureDir, run.reportPath), 'utf8')
   assert.match(report, /无截图，不能凭此报告目视复核/)
   assert.match(report, /Synthetic reporter assertion/)
+})
+
+test('report presents business titles and real observations, with identifiers and raw errors in closed technical details', async () => {
+  const f = await acceptanceFixture()
+  const tc = f.delivery.testCases[0]
+  tc.title = '请求失败后重试，展示新资料'
+  f.delivery.verification.checks[0].title = '加载与重试验收'
+  const actual = { caseId: tc.id, status: 'failed', errors: ['E-RETRY-REQUEST: expected 2, received 1'], expectationResults: [{ id: 'E1', result: 'failed', observation: '实际请求 1 次；页面仍处于加载失败状态。' }] }
+  const record = { id: 'ver-readable', scope: 'feature', status: 'failed', checkId: 'browser', environmentId: 'mock', cases: [actual] }
+  const html = renderRunReview(record, f.delivery, f.intake)
+  assert.match(html, /<h2>请求失败后重试，展示新资料 <span class="badge failed">失败/)
+  assert.match(html, /最终候选版本 · 整单验收 · 加载与重试验收/)
+  assert.match(html, /实际请求 1 次；页面仍处于加载失败状态。/)
+  assert.match(html, /<details class="technical"><summary>技术详情与原始错误/)
+  assert.match(html, /E-RETRY-REQUEST: expected 2, received 1/)
+  const visible = html.replace(/<details\b[^>]*>[\s\S]*?<\/details>/g, '').replace(/<[^>]*>/g, '')
+  assert.equal(visible.includes(tc.id), false)
+  assert.equal(visible.includes(tc.implementation.file), false)
+  assert.equal(visible.includes(actual.errors[0]), false)
+  assert.match(visible, /尚未通过/)
+  delete tc.title
+  f.delivery.verification.checks[0].title = null
+  assert.ok(renderRunReview(record, f.delivery, f.intake).includes(`<h2>${tc.expectations[0].expected} `))
+  tc.title = {}; f.delivery.verification.checks[0].title = 42
+  assert.doesNotThrow(() => renderRunReview(record, f.delivery, f.intake))
 })
 
 test('browser adapter binds actual assertion screenshot and rejects missing, wrong-case, non-image and escaped files', async () => {

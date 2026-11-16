@@ -12,6 +12,8 @@
 
 `intake.json` 保留原始来源、证据和 FR；delivery 的 schemaVersion=2 与 status 的 schemaVersion 无关。各集合的 `id` 稳定且唯一。
 
+`testCases[]` 和 `verification.checks[]` 可增加 `title`，作为报告中的可读名称。中文项目新生成用例填写中文业务标题，例如 `{"id":"TC-RECOVER","title":"请求失败后重试，展示新资料"}`。未填写时报告使用已有预期或检查类型，不要求改动旧编号。标题只是展示信息，不改变用例映射、断言和通过条件。
+
 - `acceptance[]`：原有 id/requirementIds/given/when/then；verification 为 `test|manual|inspection`。
 - `testCases[]`：id、acceptanceIds、method（`browser|manual|inspection`）、environmentId、requiredAt（至少 `feature`，可加 `task:T1`）、preconditions、steps、expectations。expectations 每项含 id、observable（ui/network/navigation/storage/document）、expected。browser 另含 dataRef、implementation.file/testId；contract-mock 用例含 mockRuleIds。
 - `verification.inputs[]`：确认需求/契约的本地文件或摘录，`{space:"project"|"feature",path:"相对路径"}`；禁止输出目录作为输入。外部文件先保存授权可读的本地副本并在 intake 留来源。

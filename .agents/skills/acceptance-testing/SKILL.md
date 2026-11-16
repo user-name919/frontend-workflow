@@ -25,6 +25,8 @@ Run the current task's verifyIds with `scope=task`, taskId and running attemptId
 
 Read the installed `.ai-dev/acceptance-review.md` for per-expectation screenshots, the fixed local HTML report and user-facing updates. Announce the testing stage, actual environment and business scenarios before running. If a task only runs engineering checks, explicitly identify when its browser scenarios will run. Capture the actual visual state at each UI/navigation expectation, including failures where possible; link screenshotRefs in the raw observation. Report results in business language with passed/failed/blocked/unexecuted items and clickable local reports, not just run IDs or reviewer pass. Keep Mock, live and manual results separate.
 
+For Chinese-language projects, give testCases and checks concise Chinese `title` values; keep machine IDs unchanged. Write prerequisites, steps, expected outcomes and actual observations in Chinese business language. Observations must contain measured page/request/data values, including failures; do not repeat the expectation or say only “assertions passed”. Keep original error stacks and identifiers in technical details. The report renderer does not translate arbitrary logs or infer missing facts. Improve old English observations by rerunning corrected tests, never editing sealed evidence.
+
 Use the original sources and test code in the existing fresh-context reviewer packet. For v2 task/final acceptance, bind each check to its caseId and each passing browser check to a direct verificationRef. Ask the reviewer to look for omissions before reading the generated case list. Semantic coverage cannot be guaranteed by schema validation or a test count.
 
 ## Finish or repair

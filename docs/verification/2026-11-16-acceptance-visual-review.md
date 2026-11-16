@@ -29,3 +29,21 @@
 - [报告截图](../../.ai-dev/review-demos/2026-11-16-visual-acceptance/report-preview.png)
 
 图片证明当时页面可供复核，不证明用例覆盖完整或语义必然正确。此次未执行新的 enterprisewechat 业务验收，也未验证真实 Cursor 后续对话遵循效果。
+
+## 中文可读性修正
+
+用户进一步指出英文观察难以阅读。本轮新增用例/检查的中文业务标题，环境和状态使用中文标签；编号、脚本路径、原始错误和日志收进默认折叠的技术详情。缺少标题的旧用例回退到原有预期，不修改稳定 ID 或准入条件。
+
+演示脚本从实际页面读取状态、资料、错误和重试按钮状态，再结合真实请求计数生成中文观察。渲染器不翻译任意日志，也不推测未测结果；英文旧记录没有被改写。相关 Skill 和接入说明已增加中文标题与实际观察的生成要求。
+
+- 相关回归：`node --test test/acceptance-visual-review.test.mjs test/acceptance-review-contract.test.mjs test/acceptance.test.mjs`，17 项全部通过；包含无标题兼容、原始错误保留、失败可见性、证据过期及准入检查。
+- 演示：`node eval/acceptance/run-demo.mjs /tmp/workflow-acceptance-zh-demo-20261116`。9 个模拟接口用例与 1 个真实本地 HTTP 用例通过；9 类注入缺陷仍全部在指定业务断言失败；恢复后重新全部通过。
+- 浏览器检查：恢复场景显示“请求 2 次、Grace（版本 2）、无错误提示”；旧数据反例显示“Ada（版本 1）”并标记失败，原始 `E-RESPONSE-CONTENT` 错误可展开。恢复场景三张实际截图均加载，报告和总览无横向溢出。
+- 13 次运行已复制到新的本地目录；14 个 HTML、478 个本地链接均有效。修改的 acceptance-testing Skill 通过 quick_validate。旧演示目录保持原样。
+
+新版入口（本地静态演示，不随源码提交）：
+
+- [中文验收总览](../../.ai-dev/review-demos/2026-11-16-visual-acceptance-zh/artifacts/verification/index.html)
+- [中文正常报告](../../.ai-dev/review-demos/2026-11-16-visual-acceptance-zh/revisions/verifications/ver-136c66d2-addb-48a3-b024-afa45a27ac6b/report.html)
+- [中文失败报告](../../.ai-dev/review-demos/2026-11-16-visual-acceptance-zh/revisions/verifications/ver-04d6ef98-6ddb-47a6-9d1a-b562231b4558/report.html)
+- [报告预览](../../.ai-dev/review-demos/2026-11-16-visual-acceptance-zh/report-preview.png)
