@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url'
 
 import { traceCli, updateCurrentTrace } from './lib/monitor-events.mjs'
 import { runVerification } from './lib/verification.mjs'
+import { formatVerificationProgress } from './lib/acceptance-report.mjs'
 import { StoreError } from './lib/workspace-store.mjs'
 
 async function main(argv) {
@@ -30,7 +31,7 @@ async function main(argv) {
   if (!requestPath) throw new StoreError('INVALID_REQUEST', '--request is required')
   const request = JSON.parse(await readFile(path.resolve(requestPath), 'utf8'))
   updateCurrentTrace({ taskId: request.taskId })
-  const result = await runVerification(featureDir, request)
+  const result = await runVerification(featureDir, request, { onProgress: event => console.error(formatVerificationProgress(event)) })
   console.log(JSON.stringify({ ok: result.status === 'passed', result }, null, 2))
   if (result.status !== 'passed') process.exitCode = 1
 }

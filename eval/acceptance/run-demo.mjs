@@ -56,7 +56,7 @@ const delivery = {
   links: rules.map((_, index) => ({ requirementId: `FR-${index + 1}`, acceptanceId: `AC-${index + 1}`, taskId: 'T1' })),
   verification: {
     inputs: [{ space: 'project', path: 'requirements.md' }],
-    environments: ['mock', 'live'].map((id) => ({ id, kind: id === 'mock' ? 'contract-mock' : 'live-test', baseURL, projectName: id, setup: 'Playwright starts current fixture server; mock backend returns 503 without interception', reset: 'fresh browser context per case, fixed fixtures', inputs: ['playwright.config.mjs', 'server.mjs', 'fixtures.json', 'backend-response.json', 'package.json', 'package-lock.json'], contract, mocks: id === 'mock' ? [{ id: 'profile', method: 'GET', url: '/api/profile', fixture: 'fixtures.json' }] : [] })),
+    environments: ['mock', 'live'].map((id) => ({ id, kind: id === 'mock' ? 'contract-mock' : 'live-test', baseURL, projectName: id, setup: 'Playwright starts current fixture server; mock backend returns 503 without interception', reset: 'fresh browser context per case, fixed fixtures', inputs: ['playwright.config.mjs', 'server.mjs', 'fixtures.json', 'backend-response.json', 'browser/evidence.mjs', 'package.json', 'package-lock.json'], contract, mocks: id === 'mock' ? [{ id: 'profile', method: 'GET', url: '/api/profile', fixture: 'fixtures.json' }] : [] })),
     checks: ['mock', 'live'].map((id) => ({ id: `${id}-browser`, kind: 'acceptance', command: process.execPath, args: ['node_modules/@playwright/test/cli.js', 'test'], cwd: '.', environmentId: id, caseIds: cases.filter((tc) => tc.environmentId === id).map((tc) => tc.id), report: 'playwright-json' })),
     finalCheckIds: ['mock-browser', 'live-browser'],
   },

@@ -12,8 +12,8 @@ export function browserCase(tc, context) {
         throw new Error(`Precondition ${index + 1}: ${observation}`)
       }
     },
-    equal(id, actual, expected, observation) {
-      const item = { id, result: 'failed', observation }
+    equal(id, actual, expected, observation, { screenshotRefs } = {}) {
+      const item = { id, result: 'failed', observation, ...(screenshotRefs ? { screenshotRefs } : {}) }
       record.expectationResults.push(item)
       try { assert.deepEqual(actual, expected); item.result = 'passed' }
       catch (error) { record.result = 'failed'; throw error }

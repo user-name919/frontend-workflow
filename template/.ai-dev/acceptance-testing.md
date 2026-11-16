@@ -2,6 +2,8 @@
 
 使用同级安装的 `acceptance-testing` Skill。状态链和人工审批权限保持原样：spec 定义 AC，plan 补用例和执行入口；任务测试在 DONE 交审前运行；最终候选整单重跑在 VERIFYING；FINAL_REVIEW 核对原文、结果及人工项。
 
+截图、逐项可读报告、固定目录和对话中的进度说明见 [验收截图与可读报告](acceptance-review.md)。新运行的 UI/navigation 通过预期必须关联当前 run 的截图；执行器自动生成 HTML 报告与总览，并输出开始/执行中/结束提示。
+
 项目启动、可选依赖应用、URL 参数、登录和数据准备见 [项目运行上下文](test-runtime.md)。所有通过记录须覆盖逐条前提与预期；旧的仅一句 passed、登录确认或缺数据记录需要保留并补测。browser-json 支持可重复 ego-browser 测试，和 Playwright 一样属于 browser 证据。
 
 方案阶段用 `render-artifacts.mjs <feature-dir> --phase spec` 生成 AC 视图，不要求未来的测试文件/运行配置已齐备，也不覆盖任务视图。计划阶段使用默认 plan 完整校验。没有活动 feature 的纯用例设计可先输出标注待补字段的草案，不能把草案当成可准入 delivery。

@@ -10,6 +10,7 @@ import { observedCaseErrors } from './case-evidence.mjs'
 import { loadTestRuntime } from './test-runtime.mjs'
 import { markArtifactChanged, resolveArtifacts } from '../update-consistency.mjs'
 import { recordArtifactDigest } from './consistency.mjs'
+import { renderAcceptanceOverview } from './acceptance-report.mjs'
 
 export const digest = (bytes) => createHash('sha256').update(bytes).digest('hex')
 export const jsonBytes = (value) => `${JSON.stringify(value, null, 2)}\n`
@@ -90,6 +91,7 @@ export async function validateVerificationRecord(featureDir, ref, delivery, { re
         environment: delivery.verification.environments.find((env) => env.id === check.environmentId),
         projectRoot: (await readFeature(featureDir)).project.root,
         outputDir: path.dirname(path.join(featureDir, record.rawReportPath)),
+        requireScreenshots: record.visualEvidenceVersion === 1,
       })
       if (record.status === 'blocked') {
         if (parsed.globalErrors?.length || !parsed.cases.some(tc => tc.status === 'blocked') || parsed.cases.some(tc => !['passed','blocked'].includes(tc.status))) throw new Error('Blocked report contains failures or invalid evidence')
@@ -169,10 +171,14 @@ export async function assertAcceptanceReady(featureDir, options) {
 
 export async function refreshAcceptanceResults(featureDir) {
   const summary = await acceptanceReadiness(featureDir)
+  const { status, delivery } = await loadAcceptance(featureDir)
   const dir = path.join(featureDir, 'artifacts/verification')
+  await mkdir(dir, { recursive: true })
+  // 总览可随当前证据刷新；每次运行的 report.html 与截图封存在原 run 中。
+  if (delivery.schemaVersion === 2) await writeFile(path.join(dir, 'index.html'), renderAcceptanceOverview(summary, status, delivery))
   const summaryValue = { schemaVersion: 2, ...summary }
   const cell = (value) => String(value ?? '').replaceAll('|', '\\|').replaceAll('\n', ' ')
-  const lines = ['# Requirement acceptance', '', 'Derived view; gates re-read original run evidence.', '', '| Case | Environment | Method | Result | Evidence |', '| --- | --- | --- | --- | --- |', ...summary.cases.map((tc) => `| ${[tc.caseId, tc.environmentId, tc.method, tc.status, tc.runId || tc.recordRef].map(cell).join(' | ')} |`), '', '| Check | Latest feature run | Result |', '| --- | --- | --- |', ...summary.checks.map((check) => `| ${[check.checkId, check.runId, check.status].map(cell).join(' | ')} |`), '', ...summary.errors.map((error) => `- ${cell(error.code)}: ${cell(error.message)}`), '']
+  const lines = ['# Requirement acceptance', '', ...(delivery.schemaVersion === 2 ? ['[查看验收总览、用例结果与截图](index.html)', ''] : []), 'Derived view; gates re-read original run evidence. Screenshots assist review; they do not replace assertions.', '', '| Case | Environment | Method | Result | Evidence |', '| --- | --- | --- | --- | --- |', ...summary.cases.map((tc) => `| ${[tc.caseId, tc.environmentId, tc.method, tc.status, tc.runId || tc.recordRef].map(cell).join(' | ')} |`), '', '| Check | Latest feature run | Result |', '| --- | --- | --- |', ...summary.checks.map((check) => `| ${[check.checkId, check.runId, check.status].map(cell).join(' | ')} |`), '', ...summary.errors.map((error) => `- ${cell(error.code)}: ${cell(error.message)}`), '']
   const markdown = lines.join('\n')
   const previousJson = await readFile(path.join(dir, 'acceptance-results.json'), 'utf8').catch(() => null)
   const previousMarkdown = await readFile(path.join(dir, 'verification.md'), 'utf8').catch(() => null)

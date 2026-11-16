@@ -19,6 +19,8 @@ This host Agent is the **main agent**: it writes analysis/spec/plan and it chang
 
 The reviewer never edits business code and never dispatches the next implementer.
 
+For task/final verification, follow `.ai-dev/acceptance-review.md`: announce the trigger point, actual environment and business scenarios, relay failures/blockers and finish with a readable result table and local report links. Show business test results before the review verdict; a run ID or `pass` alone is not a user-facing acceptance summary. If browser tests are scheduled for a later integration task, say so while reporting current lint/inspection results.
+
 ## Action map
 
 | next type | Who | Persist with |

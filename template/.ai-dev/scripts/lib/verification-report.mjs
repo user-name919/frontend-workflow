@@ -4,6 +4,7 @@ import { realpath } from 'node:fs/promises'
 import { readEvidenceFile } from './evidence-files.mjs'
 import { observedCaseErrors } from './case-evidence.mjs'
 import { loadTestRuntime, runtimeEvidenceErrors } from './test-runtime.mjs'
+import { collectVisualEvidence } from './visual-evidence.mjs'
 export { readEvidenceFile } from './evidence-files.mjs'
 
 function flatten(suites, rootDir) {
@@ -17,7 +18,7 @@ function flatten(suites, rootDir) {
   return tests
 }
 
-export async function readPlaywrightReport(report, { check, cases, environment, projectRoot, outputDir }) {
+export async function readPlaywrightReport(report, { check, cases, environment, projectRoot, outputDir, requireScreenshots = false }) {
   const errors = []
   const evidencePaths = new Set()
   const results = []
@@ -65,6 +66,7 @@ export async function readPlaywrightReport(report, { check, cases, environment, 
         evidencePaths.add(relative)
       }
       const context = JSON.parse(bytes)
+      outcome.context = context
       // 只有附有真实未满足前提、没有执行失败的单次 skip 才是准备阻塞。
       const blocked = context.result === 'blocked' && test.results?.length === 1 && last.status === 'skipped' && !(last.retry || 0) && !(last.errors || []).length
       if (blocked) outcome.status = 'blocked'
@@ -90,6 +92,12 @@ export async function readPlaywrightReport(report, { check, cases, environment, 
       outcome.errors.push(error.message)
       outcome.status = 'failed'
     }
+    if (requireScreenshots || outcome.context?.expectationResults?.some(item => item.screenshotRefs?.length)) {
+      outcome.visualEvidence = await collectVisualEvidence(tc, outcome.context?.expectationResults, outputDir, { required: requireScreenshots, passed: outcome.status === 'passed' })
+      outcome.errors.push(...outcome.visualEvidence.errors)
+      for (const item of outcome.visualEvidence.screenshots) evidencePaths.add(item.path)
+      if (outcome.visualEvidence.errors.length) outcome.status = 'failed'
+    }
     results.push(outcome)
   }
   if (tests.some(({test}) => !handled.has(test) && !clean(test))) globalErrors.push('Unmapped test did not pass')
@@ -99,7 +107,7 @@ export async function readPlaywrightReport(report, { check, cases, environment, 
 }
 
 /** 接纳可重复浏览器脚本的真实报告，避免把 Agent 浏览器操作伪装成人工确认。 */
-export async function readBrowserReport(report, { check, cases, environment, projectRoot, outputDir }) {
+export async function readBrowserReport(report, { check, cases, environment, projectRoot, outputDir, requireScreenshots = false }) {
   const errors = []
   const results = []
   const evidencePaths = new Set()
@@ -127,8 +135,14 @@ export async function readBrowserReport(report, { check, cases, environment, pro
     for (const file of item?.attachments || []) {
       try { await readEvidenceFile(outputDir, file); evidencePaths.add(file) } catch (error) { problems.push(error.message) }
     }
+    let visualEvidence
+    if (requireScreenshots || item?.expectationResults?.some(e => e.screenshotRefs?.length)) {
+      visualEvidence = await collectVisualEvidence(tc, item?.expectationResults, outputDir, { required: requireScreenshots, passed: item?.result === 'passed' })
+      problems.push(...visualEvidence.errors)
+      for (const item of visualEvidence.screenshots) evidencePaths.add(item.path)
+    }
     const status = !problems.length && item?.result === 'blocked' ? 'blocked' : item?.result === 'passed' && !problems.length ? 'passed' : 'failed'
-    results.push({ caseId, environmentId: environment.id, method: 'browser', status, errors: problems, context, preconditionResults: item?.preconditionResults || [], expectationResults: item?.expectationResults || [] })
+    results.push({ caseId, environmentId: environment.id, method: 'browser', status, errors: problems, context, preconditionResults: item?.preconditionResults || [], expectationResults: item?.expectationResults || [], ...(visualEvidence ? { visualEvidence } : {}) })
     if (status !== 'passed') errors.push(`${caseId}: ${status}${problems.length ? ': ' + problems.join('; ') : ''}`)
   }
   errors.push(...globalErrors)

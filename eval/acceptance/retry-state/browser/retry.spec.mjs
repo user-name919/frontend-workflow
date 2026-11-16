@@ -1,17 +1,20 @@
 import { test, expect } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
+import { capture } from './evidence.mjs'
 const fixtures = JSON.parse(await readFile(new URL('../fixtures.json', import.meta.url), 'utf8'))
 let hits
 let requests
 let registered
 let respond
 let release
+let screenshots
 
 test.beforeEach(async ({ page }) => {
   hits = 0
   requests = []
   registered = []
   release = null
+  screenshots = []
   respond = async (route) => route.fulfill({ json: fixtures.first })
   await page.route('**/api/profile', async (route) => {
     const request = route.request()
@@ -25,9 +28,11 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/')
 })
 test.afterEach(async ({ baseURL, page }, testInfo) => {
+  const screenshot = await capture(page, testInfo, testInfo.status || 'end').catch(() => null)
+  if (screenshot) screenshots.push(screenshot)
   release?.()
   const state = await page.locator('#status').textContent().catch(() => 'unavailable')
-  await testInfo.attach('acceptance-context', { contentType: 'application/json', body: Buffer.from(JSON.stringify({ environmentId: process.env.WORKFLOW_ENVIRONMENT_ID || 'mock', baseURL, mockedRoutes: registered, mockHits: { profile: hits }, requests, preconditionResults: [{ index: 0, result: registered.includes('profile') ? 'met' : 'unmet', observation: `profile route registered; observed hits=${hits}` }], expectationResults: [{ id: 'E1', result: testInfo.status === 'passed' ? 'passed' : 'failed', observation: `Assertions in ${testInfo.title}; observed final UI state=${state}; requests=${hits}` }] })) })
+  await testInfo.attach('acceptance-context', { contentType: 'application/json', body: Buffer.from(JSON.stringify({ environmentId: process.env.WORKFLOW_ENVIRONMENT_ID || 'mock', baseURL, mockedRoutes: registered, mockHits: { profile: hits }, requests, preconditionResults: [{ index: 0, result: registered.includes('profile') ? 'met' : 'unmet', observation: `profile route registered; observed hits=${hits}` }], expectationResults: [{ id: 'E1', result: testInfo.status === 'passed' ? 'passed' : 'failed', observation: `Assertions in ${testInfo.title}; observed final UI state=${state}; requests=${hits}`, screenshotRefs: screenshots }] })) })
 })
 const status = (page) => page.locator('#status')
 const load = (page) => page.getByRole('button', { name: '加载', exact: true })
@@ -37,11 +42,13 @@ async function expectSuccess(page, profile) {
   await expect(page.locator('#data'), 'E-RESPONSE-CONTENT').toHaveText(JSON.stringify(profile, null, 2))
   await expect(page.getByRole('alert'), 'E-ERROR-CLEARED').toBeEmpty()
   await expect(retry(page), 'E-RETRY-HIDDEN').toBeHidden()
+  screenshots.push(await capture(page, test.info(), 'success'))
 }
 async function expectFailure(page, message) {
   await expect(status(page), 'E-FAILURE-STATE').toHaveText('failed')
   await expect(page.getByRole('alert'), 'E-ERROR-VISIBLE').toContainText(message)
   await expect(retry(page), 'E-RETRY-AVAILABLE').toBeVisible()
+  screenshots.push(await capture(page, test.info(), 'error'))
 }
 
 test('[TC-SUCCESS] original successful JSON remains visible', async ({ page }) => {
@@ -55,6 +62,7 @@ test('[TC-LOADING] pending request exposes loading', async ({ page }) => {
   await load(page).click()
   await expect.poll(() => hits).toBe(1)
   await expect(status(page), 'E-LOADING-STATE').toHaveText('loading')
+  screenshots.push(await capture(page, test.info(), 'loading'))
   release()
   await expectSuccess(page, fixtures.first)
 })

@@ -191,6 +191,13 @@ export async function validateReport(p,r,root) {
             const run = JSON.parse(await readFile(path.join(root,recordMaterial.path),'utf8'))
             if (run.schemaVersion !== 2 || run.id !== ref.runId || run.status !== 'passed' || run.exitCode !== 0 || !run.cases?.some(tc => tc.caseId === ref.caseId && tc.status === 'passed')) error(errors,'WRONG_CASE_EVIDENCE',c.checkId)
             if (!outputMaterial.path.endsWith('/' + run.rawReportPath) || !recordMaterial.path.endsWith(`/revisions/verifications/${run.id}/record.json`)) error(errors,'WRONG_RUN_MATERIAL',c.checkId)
+            if (run.visualEvidenceVersion === 1) {
+              const images = run.cases?.find(tc => tc.caseId === ref.caseId)?.visualEvidence?.screenshots || []
+              for (const image of images) {
+                const imagePath = path.join(path.dirname(recordMaterial.path), image.path)
+                if (!p.materials.some(m => m.role === 'verification' && m.path === imagePath)) error(errors,'SCREENSHOT_MATERIAL_MISSING',`${c.checkId}: ${imagePath}`)
+              }
+            }
           } catch (e) { error(errors,'UNREADABLE_RUN',e.message) }
         }
       }

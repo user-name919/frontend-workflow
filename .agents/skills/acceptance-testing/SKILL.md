@@ -23,6 +23,8 @@ Read [execution and failure handling](references/execution.md). Reuse project te
 
 Run the current task's verifyIds with `scope=task`, taskId and running attemptId before submitting DONE. Cross-task scenarios can wait until feature verification. Run every finalCheckId with `scope=feature` in VERIFYING on the final candidate. The runner writes immutable run directories; only its actual records can support acceptance. Do not hand-edit records, fingerprints, status, or derived pass results.
 
+Read the installed `.ai-dev/acceptance-review.md` for per-expectation screenshots, the fixed local HTML report and user-facing updates. Announce the testing stage, actual environment and business scenarios before running. If a task only runs engineering checks, explicitly identify when its browser scenarios will run. Capture the actual visual state at each UI/navigation expectation, including failures where possible; link screenshotRefs in the raw observation. Report results in business language with passed/failed/blocked/unexecuted items and clickable local reports, not just run IDs or reviewer pass. Keep Mock, live and manual results separate.
+
 Use the original sources and test code in the existing fresh-context reviewer packet. For v2 task/final acceptance, bind each check to its caseId and each passing browser check to a direct verificationRef. Ask the reviewer to look for omissions before reading the generated case list. Semantic coverage cannot be guaranteed by schema validation or a test count.
 
 ## Finish or repair

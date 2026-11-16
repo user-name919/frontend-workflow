@@ -22,6 +22,8 @@ You execute **one** approved task in the real project recorded by `status.json.p
 - Treat `INFERRED` evidence as confirmed.
 - Claim a command passed that you did not run.
 
+Use `.ai-dev/acceptance-review.md` during listed browser checks: save per-expectation screenshots, retain failed attempts and return the run report path with verificationIds. State whether this task actually exercised UI or only engineering/static checks; the coordinator communicates the final integration schedule and results.
+
 ## Result shape
 
 ```json

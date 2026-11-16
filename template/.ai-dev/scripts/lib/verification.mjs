@@ -10,6 +10,7 @@ import { mutateFeature, readFeature, StoreError } from './workspace-store.mjs'
 import { currentTraceId, startActivity } from './monitor-events.mjs'
 import { captureVerificationSnapshot, digest, jsonBytes, loadAcceptance, refreshAcceptanceResults, validateVerificationRecord, writeJsonAtomic } from './acceptance.mjs'
 import { readEvidenceFile, readAcceptanceReport } from './verification-report.mjs'
+import { renderRunReview } from './acceptance-report.mjs'
 
 const execFile = promisify(execFileCallback)
 
@@ -32,6 +33,7 @@ async function registerRun(featureDir, record, expectedVersion, actor) {
       schemaVersion: record.schemaVersion, id: record.id, scope: record.scope, taskId: record.taskId,
       attemptId: record.attemptId, checkId: record.checkId, sequence: record.sequence,
       status: record.status, exitCode: record.exitCode, recordRef, recordDigest: digest(jsonBytes(record)),
+      ...(record.reportPath ? { reportPath: record.reportPath } : {}),
     } }
     if (record.schemaVersion === 2 && previousRun?.status === 'running' && record.status !== 'running') {
       const key = `${record.scope}:${record.taskId || 'feature'}:${record.checkId}`
@@ -53,7 +55,7 @@ async function registerRun(featureDir, record, expectedVersion, actor) {
   })
 }
 
-export async function runVerification(featureDir, input = {}) {
+export async function runVerification(featureDir, input = {}, { onProgress } = {}) {
   const resolved = path.resolve(featureDir)
   const { status, intake, delivery } = await loadAcceptance(resolved)
   const v2 = delivery.schemaVersion === 2
@@ -92,6 +94,7 @@ export async function runVerification(featureDir, input = {}) {
   const id = `ver-${randomUUID()}`
   const outDir = path.join(resolved, 'revisions/verifications', id)
   await mkdir(outDir, { recursive: true })
+  if (v2 && check.kind === 'acceptance') await mkdir(path.join(outDir, 'screenshots'), { recursive: true })
   const record = {
     schemaVersion: v2 ? 2 : 1, id, sequence: status.control.version + 1, scope, taskId,
     attemptId: input.attemptId || null, checkId: check.id, environmentId: environment?.id || null,
@@ -101,8 +104,12 @@ export async function runVerification(featureDir, input = {}) {
     snapshotDigest: digest(await readFile(path.join(resolved, 'revisions/snapshots', `${before.id}.json`))),
     stdoutPath: `revisions/verifications/${id}/stdout.log`, stderrPath: `revisions/verifications/${id}/stderr.log`,
     rawReportPath: v2 && check.kind === 'acceptance' ? `revisions/verifications/${id}/raw-report.json` : null,
+    ...(v2 ? { reportPath: `revisions/verifications/${id}/report.html` } : {}),
+    ...(v2 && check.kind === 'acceptance' ? { visualEvidenceVersion: 1 } : {}),
   }
   const runningStatus = await registerRun(resolved, record, status.control.version, actor)
+  onProgress?.({ phase: 'start', check, scope, taskId, environment, caseCount: check.caseIds?.length || 0 })
+  const heartbeat = onProgress ? setInterval(() => onProgress({ phase: 'running', checkId: check.id, elapsedSeconds: Math.floor((Date.now() - Date.parse(record.startedAt)) / 1000) }), 30000) : null
   const activity = startActivity({ kind: 'command', component: 'verification-command', command: path.basename(command), projectRoot, featureDir: resolved, taskId, parentId: currentTraceId() })
   let stdout = ''
   let stderr = ''
@@ -113,6 +120,7 @@ export async function runVerification(featureDir, input = {}) {
       maxBuffer: 20 * 1024 * 1024, encoding: 'utf8',
       env: { ...process.env, ...(v2 ? {
         WORKFLOW_VERIFICATION_DIR: outDir, WORKFLOW_ENVIRONMENT_ID: environment.id,
+        WORKFLOW_SCREENSHOT_DIR: path.join(outDir, 'screenshots'),
         WORKFLOW_BASE_URL: environment.baseURL || '',
         WORKFLOW_RUN_ID: id,
         WORKFLOW_FEATURE_DIR: resolved,
@@ -133,6 +141,7 @@ export async function runVerification(featureDir, input = {}) {
     record.exitCode = missingHost ? null : typeof error.code === 'number' ? error.code : 1
     record.summary = missingHost ? 'command/host missing' : record.timedOut ? 'timed out' : 'non-zero exit'
   } finally {
+    clearInterval(heartbeat)
     activity.finish(record.exitCode, record.exitCode === 0 ? 'completed' : 'failed')
   }
   await writeFile(path.join(resolved, record.stdoutPath), stdout)
@@ -142,7 +151,7 @@ export async function runVerification(featureDir, input = {}) {
   if (record.rawReportPath) {
     try {
       const report = JSON.parse(await readEvidenceFile(resolved, record.rawReportPath))
-      const parsed = await readAcceptanceReport(report, { check, cases: delivery.testCases, environment, projectRoot, outputDir: outDir })
+      const parsed = await readAcceptanceReport(report, { check, cases: delivery.testCases, environment, projectRoot, outputDir: outDir, requireScreenshots: record.visualEvidenceVersion === 1 })
       record.cases = parsed.cases
       record.reportErrors = parsed.errors
       evidencePaths.push(record.rawReportPath, ...parsed.evidencePaths.map((file) => path.relative(resolved, path.join(outDir, file))))
@@ -157,7 +166,6 @@ export async function runVerification(featureDir, input = {}) {
       record.summary = `Missing/invalid fresh report: ${error.message}`
     }
   }
-  for (const file of [...new Set(evidencePaths)]) record.files.push({ path: file, sha256: digest(await readEvidenceFile(resolved, file)) })
   const after = await verifySnapshot(resolved, before)
   record.outputSnapshotId = before.id
   if (!after.fresh) {
@@ -166,12 +174,18 @@ export async function runVerification(featureDir, input = {}) {
     record.changes = after.changes
   }
   record.endedAt = new Date().toISOString()
+  if (v2) {
+    await writeFile(path.join(resolved, record.reportPath), renderRunReview(record, delivery, intake))
+    evidencePaths.push(record.reportPath)
+  }
+  for (const file of [...new Set(evidencePaths)]) record.files.push({ path: file, sha256: digest(await readEvidenceFile(resolved, file)) })
   const next = await registerRun(resolved, record, runningStatus.control.version, actor)
   if (v2) await refreshAcceptanceResults(resolved)
   else {
     const records = await Promise.all(Object.values(next.runtime.verifications).map(async (ref) => JSON.parse(await readFile(path.join(resolved, ref.recordRef), 'utf8'))))
     await writeFile(path.join(resolved, 'artifacts/verification/verification.md'), renderVerificationMarkdown(records))
   }
+  onProgress?.({ phase: 'finish', record, reportPath: record.reportPath ? path.join(resolved, record.reportPath) : path.join(resolved, 'artifacts/verification/verification.md'), overviewPath: path.join(resolved, 'artifacts/verification/index.html') })
   return record
 }
 

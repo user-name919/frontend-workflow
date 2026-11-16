@@ -6,6 +6,24 @@ import { createFeatureWorkspace } from '../../template/.ai-dev/scripts/init-chan
 import { digest, writeJsonAtomic } from '../../template/.ai-dev/scripts/lib/acceptance.mjs'
 
 export const manualReason = { category: 'human-judgment', reason: 'Human copy judgment in a protocol fixture', sourceRefs: ['prd.md'] }
+// Tiny protocol image only; never reported as a business/browser acceptance screenshot.
+export const protocolPNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aO6sAAAAASUVORK5CYII='
+export function fixtureReportCommand(report) {
+  return { command: process.execPath, args: ['-e', `
+    const fs=require('fs'),path=require('path'),report=${JSON.stringify(report)};
+    for(const spec of report.suites[0].specs){
+      const id=spec.title.match(/^\\[([^\\]]+)\\]/)[1];
+      const file='screenshots/'+id+'/E1.png';
+      fs.mkdirSync(path.dirname(path.join(process.env.WORKFLOW_VERIFICATION_DIR,file)),{recursive:true});
+      fs.writeFileSync(path.join(process.env.WORKFLOW_VERIFICATION_DIR,file),Buffer.from('${protocolPNG}','base64'));
+      const attachment=spec.tests[0].results[0].attachments[0];
+      const context=JSON.parse(Buffer.from(attachment.body,'base64'));
+      context.expectationResults[0].screenshotRefs=[file];
+      attachment.body=Buffer.from(JSON.stringify(context)).toString('base64');
+    }
+    fs.writeFileSync(process.env.PLAYWRIGHT_JSON_OUTPUT_FILE,JSON.stringify(report));
+  `] }
+}
 export function observedEvidence(tc, confirmationRef = 'test-message-1') {
   return {
     preconditionResults: tc.preconditions.map((_, index) => ({ index, result: 'met', observation: 'Synthetic protocol precondition, not business evidence' })),
@@ -53,7 +71,7 @@ export async function acceptanceFixture() {
   const intake = { schemaVersion: 1, sources: [{ id: 'S1', kind: 'prd', locator: 'prd.md', version: '1', availability: 'available', contentHash: null }], evidence: [{ id: 'E1', claim: 'Show response', label: 'CONFIRMED', sourceId: 'S1', location: 'line 1' }], requirements: [{ id: 'FR-1', statement: 'Show response', evidenceIds: ['E1'], ownership: 'FRONTEND_BEHAVIOR', disposition: 'included' }], questions: [] }
   const report = playwrightReport(root)
   // This process only exercises report ingestion. Browser semantics are tested by eval/acceptance.
-  const command = { command: process.execPath, args: ['-e', `require('fs').writeFileSync(process.env.PLAYWRIGHT_JSON_OUTPUT_FILE, ${JSON.stringify(JSON.stringify(report))})`] }
+  const command = fixtureReportCommand(report)
   const delivery = {
     schemaVersion: 2,
     acceptance: [{ id: 'AC-1', requirementIds: ['FR-1'], given: 'profile response', when: 'load', then: 'display profile', verification: 'test' }],

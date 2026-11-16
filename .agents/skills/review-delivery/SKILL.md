@@ -26,6 +26,8 @@ node <skills-root>/prepare-review/scripts/review-contract.mjs report <sealed-pac
 
 任务 `pass` 只放行**当前任务**，不是 Scope/Spec/Plan/Final 的人工批准，也不提交、合并或部署。仅有 minor 必须仍出 pass。明确已核查、未核查与剩余风险；不能承诺 Skill 或校验器保证模型判断准确。
 
+对照 `.ai-dev/acceptance-review.md` 阅读封存运行报告和相关截图，检查图片是否确为该用例/预期的实际状态。截图不代替请求、分页数据、剪贴板等断言，也不保证原文覆盖完整。摘要先用业务名称说明测了什么、结果及缺口，再给 verdict；不要只列 runId。必测项未执行或缺证据须退回补测，不能因为存在截图或静态实现而列为 minor 可选。
+
 ## 两版技术方案一致性
 
 对 delivery v2，先独立阅读原文列出应该观察到的行为，再比较 TC 清单，防止只审核已有用例。确认测试实际到达异常、操作恢复入口并断言新请求/新数据，而非只检查可见性。核对 mock 规则命中、契约版本、live 无响应替换，以及失败/skip/flaky/旧记录未被隐藏。browser 检查使用 method=test；通过项添加 verificationRef `{caseId,runId,recordMaterialId,outputMaterialId}` 直接对应包内当前记录和完整原始报告。测试覆盖与语义准确度不能由编号、数量或 JSON 合格推断。

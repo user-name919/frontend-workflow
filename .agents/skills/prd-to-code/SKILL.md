@@ -27,7 +27,11 @@ Find the repository root, then read `.ai-dev/workflow.md` and `.ai-dev/constitut
 
 ## Requirement context and comments
 
+Make testing visible using `.ai-dev/acceptance-review.md`: explain the planned trigger points, announce each task/final browser run with its real environment and business scenarios, then show observed results, remaining gaps and clickable local HTML/screenshot evidence. An independent review pass is a separate conclusion from test coverage. Do not present lint-only tasks as browser-tested.
+
 Follow `.ai-dev/requirement-context.md` to maintain one `.rag-context/<具体需求名称>.md` in the real project, using `.ai-dev/templates/requirement-context.md`. Update it when rules/decisions change and before task verification; compare it with final code before feature verification. Include it in relevant task files, change records and review materials. Preserve the six requested sections and unresolved facts; the summary is a derived context aid, not a replacement authority for PRD/decisions or approval. Explain complex business conditions, subtle boundaries and special handling with short Chinese comments about verified reasons and limits; update obsolete comments and do not invent business rationale.
+
+Finish all source/context edits before the final candidate checks. After final approval or COMPLETE, do not edit that candidate merely to write a completion label into the summary; report the workflow state in the conversation/status instead.
 
 ## Keep artifacts consistent
 

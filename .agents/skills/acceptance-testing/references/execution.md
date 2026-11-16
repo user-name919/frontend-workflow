@@ -2,6 +2,8 @@
 
 Use a fresh isolated browser context for each case, deterministic fixture/reset logic and the real app entry. A webServer should start the current checkout and fail on conflicting ports; an HTTP 200 from an unrelated existing server does not identify the candidate. Configure traces/screenshots in WORKFLOW_VERIFICATION_DIR so outputs do not change source snapshots. Complete JSON output must include passed tests.
 
+Follow the installed `.ai-dev/acceptance-review.md`: capture each asserted visual state under the current run's screenshots/<caseId>/ and bind PNG paths through expectationResults[].screenshotRefs. The helper saves the actual browser output; it does not establish the assertion. Capture before leaving the state and preserve the failure view in finally when possible. Generic final-page screenshots do not prove all earlier steps. Keep the report and images in the run directory, including unsuccessful attempts.
+
 For an undeployed endpoint, confirm the method/path/parameters/response contract first, freeze its local file and digest, and fulfill only that endpoint directly. `route.fetch()` still requires a reachable server and is unsuitable for an undeployed endpoint. Older reachable APIs may remain real, but label this environment contract-mock and enumerate every replacement. Do not fabricate a response contract from frontend implementation.
 
 Define mock rule IDs with exact method/URL and fixture. Attach acceptance-context containing actual environmentId, baseURL, registered mock IDs and observed hit counts. Assert the fault really happened and attach evidence after the case. A rule with zero hits is missing setup evidence, even if a generic error banner appears. Never change production/test service state just to inject a frontend failure.

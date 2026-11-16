@@ -208,6 +208,7 @@ node .ai-dev/scripts/record-code-changes.mjs <feature-dir> <file...>
 1. 从真实项目脚本和配置确认实际存在的 lint、类型检查、测试和构建命令。
 2. 执行自动化验收检查，并让开发人员在同一个真实项目环境审核页面效果。
 3. 在 `artifacts/verification/verification.md` 记录准确命令、结果、人工检查和剩余风险。
+   执行器同时生成 `artifacts/verification/index.html` 总览与每轮 `report.html`。按 [验收截图与可读报告](acceptance-review.md) 保存逐预期截图，在对话中说明触发阶段、真实环境、业务场景、结果及未测项，并给出可点击路径。
 4. 重新运行代码变更记录脚本，确保 `changed-files.json` 和 `changes.patch` 是最终状态。
 5. 确认 `staleArtifacts` 为空，将状态转为 `FINAL_REVIEW`，然后停止。
 
