@@ -64,10 +64,6 @@ function approvalOk(status, gate, gates) {
   return gateAuthorized(status, gate)
 }
 
-function reviewKey(gate, taskId) {
-  return gate === 'task' && taskId ? `task:${taskId}` : gate
-}
-
 function hasReview(status, key, gates) {
   if (gates?.hasReview?.[key] === true) return true
   if (gates?.hasReview?.[key] === false) return false
@@ -84,42 +80,14 @@ function reviewFresh(status, key, gates) {
   return true
 }
 
-function reviewOrHuman(status, gate, capabilities, gates) {
-  const cap = capabilityOf(capabilities)
-  const key = reviewKey(gate, null)
-  if (gates?.staleApprovals?.includes(gate) || gates?.staleReviews?.includes(key)) {
-    return action('request_review', status, {
-      gate,
-      capability: cap,
-      reason: `${gate} approval or review is stale`,
-      inputPaths: STAGE_INPUTS.generate_spec,
-    })
-  }
-  if (hasReview(status, key, gates)) {
-    if (!reviewFresh(status, key, gates)) {
-      return action('request_review', status, {
-        gate,
-        capability: cap,
-        reason: `${gate} review is stale`,
-      })
-    }
-    return action('await_human', status, {
-      gate,
-      capability: cap,
-      reason: `${gate} has a current review; human decision still required`,
-    })
-  }
-  if (capabilities?.freshContextDispatch || capabilities?.requestReview) {
-    return action('request_review', status, {
-      gate,
-      capability: cap,
-      reason: `prepare ${gate} review packet`,
-    })
-  }
+function awaitStageApproval(status, gate, capabilities, gates) {
+  const stale = gates?.staleApprovals?.includes(gate) || gates?.[gate]?.stale === true
   return action('await_human', status, {
     gate,
-    capability: cap,
-    reason: `${gate} awaiting human`,
+    capability: capabilityOf(capabilities),
+    reason: stale
+      ? `${gate} approval is stale; refresh materials and request human approval`
+      : `${gate} awaiting human approval`,
   })
 }
 
@@ -268,7 +236,7 @@ export function nextAction(input = {}) {
           inputPaths: STAGE_INPUTS.generate_spec,
         })
       }
-      return reviewOrHuman(status, 'scope', capabilities, gates)
+      return awaitStageApproval(status, 'scope', capabilities, gates)
     case 'SPEC_REVIEW':
       if (approvalOk(status, 'spec', gates)) {
         return action('generate_plan', status, {
@@ -277,7 +245,7 @@ export function nextAction(input = {}) {
           inputPaths: STAGE_INPUTS.generate_plan,
         })
       }
-      return reviewOrHuman(status, 'spec', capabilities, gates)
+      return awaitStageApproval(status, 'spec', capabilities, gates)
     case 'PLAN_REVIEW':
       if (approvalOk(status, 'plan', gates)) {
         const ready = (delivery?.tasks || []).find((task) => depsPassed(status, task))
@@ -287,7 +255,7 @@ export function nextAction(input = {}) {
           reason: 'plan approved; legally transition to IMPLEMENTING then dispatch',
         })
       }
-      return reviewOrHuman(status, 'plan', capabilities, gates)
+      return awaitStageApproval(status, 'plan', capabilities, gates)
     case 'IMPLEMENTING':
       return implementingAction(status, delivery, capabilities, gates)
     case 'VERIFYING':

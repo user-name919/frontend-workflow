@@ -5,7 +5,7 @@ import { observedEvidence } from './helpers/acceptance.mjs'
 import assert from 'node:assert/strict'
 import { inspectionDelivery } from './helpers/acceptance.mjs'
 import { captureVerificationSnapshot, recordCaseEvidence } from '../template/.ai-dev/scripts/lib/acceptance.mjs'
-import { cp, mkdtemp, mkdir, writeFile } from 'node:fs/promises'
+import { cp, mkdtemp, mkdir, realpath, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -138,6 +138,30 @@ function passReport(request, extra = {}) {
     ...extra,
   }
 }
+
+test('installed workflow CLI waits for human at each pre-code gate with reviewer dispatch available', async (t) => {
+  const { projectRoot, featureDir } = await makeFeature()
+  t.after(() => rm(projectRoot, { recursive: true, force: true }))
+  const controlScript = await realpath(path.join(projectRoot, '.ai-dev/scripts/workflow-control.mjs'))
+
+  for (const [state, gate] of [
+    ['SCOPE_REVIEW', 'scope'],
+    ['SPEC_REVIEW', 'spec'],
+    ['PLAN_REVIEW', 'plan'],
+  ]) {
+    const current = await readFeature(featureDir)
+    await mutateFeature(
+      featureDir,
+      { expectedVersion: current.control.version, event: { type: 'test.seed', actor: 'test' } },
+      (draft) => { draft.state = state },
+    )
+    const { stdout } = await execFile(process.execPath, [controlScript, featureDir, 'next'], { cwd: projectRoot })
+    const result = JSON.parse(stdout)
+    assert.equal(result.capability, 'autonomous-in-host')
+    assert.equal(result.action.type, 'await_human')
+    assert.equal(result.action.gate, gate)
+  }
+})
 
 test('protocol simulation: two tasks, spec fail repair, stale report, BLOCKED resume, final human', async () => {
   const { featureDir, projectRoot } = await makeFeature()

@@ -71,6 +71,6 @@ v1 可读取、诊断和保留历史命令记录；运行中需求在下一次 s
 
 ## 独立审核
 
-使用 prepare-review 的 v2 包。plan 检查每个 TC 的来源和测试设计；task/final acceptance checks 加 caseId，browser 对应 method=test。通过报告中的 verificationRef 提供 caseId、runId、recordMaterialId、outputMaterialId，包内材料包括实际 record.json 和 raw-report.json。每个必需工作流规则需直接映射，不能借用别项 pass。人工确认后、新运行后或代码变化后重新封存和复核。
+计划阶段由主 Agent 检查每个 TC 的来源和测试设计，交人工确认，不自动派独立审核。开发任务和最终代码审核使用 prepare-review 的 v2 包：task/final acceptance checks 加 caseId，browser 对应 method=test。通过报告中的 verificationRef 提供 caseId、runId、recordMaterialId、outputMaterialId，包内材料包括实际 record.json 和 raw-report.json。每个必需工作流规则需直接映射，不能借用别项 pass。人工确认后、新运行后或代码变化后重新封存和复核。
 
 本地演示与缺陷反例见仓库 `eval/acceptance/README.md`。真实业务项目仍需验证契约、账号、数据重置和实际调用链，样例不能替代该试点。

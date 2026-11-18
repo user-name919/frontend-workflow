@@ -150,6 +150,8 @@ PRD / 接口文档
 
 AI 不会替人批准审核点，也不会自动 commit、push、创建 PR、merge 或 deploy。
 
+开发前的范围、技术方案和实施计划由主 Agent 检查后交人工确认，不自动派审核子 Agent；开发任务完成后和最终代码验收时保留独立审核。
+
 ## 常用命令
 
 检查安装包和其中全部 Skills：
@@ -172,13 +174,13 @@ node .ai-dev/scripts/snapshot-change.mjs .ai-dev/features/<requirement-id> captu
 node .ai-dev/scripts/snapshot-change.mjs .ai-dev/features/<requirement-id> verify --snapshot-id snap-...
 ```
 
-独立审核协议（默认严格人工；可选对本需求授权 spec/plan）：
+独立审核协议（主要用于开发任务和最终代码；默认严格人工）：
 
 ```bash
 # 严格模式：review pass 不能代替人工 approve
 node .ai-dev/scripts/record-review.mjs .ai-dev/features/<id> validate --request req.json --report report.json
 
-# 授权模式（仅 spec/plan；scope/final 仍必须人工）
+# 兼容已有委派或用户明确要求的单独阶段审核；不会自动派发（仅 spec/plan）
 node .ai-dev/scripts/workflow-control.mjs .ai-dev/features/<id> delegate --request '{"expectedVersion":1,"actor":"lead","decisionRef":"meeting#1","gates":["spec"]}'
 node .ai-dev/scripts/record-review.mjs .ai-dev/features/<id> accept --request req.json --report report.json
 ```

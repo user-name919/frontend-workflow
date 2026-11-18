@@ -5,7 +5,7 @@
 ## 一句话
 
 用户**有机会**感知到 review 子 Agent，但**不能 100% 保证**每次都会出现卡片。  
-触发时机是「当前任务已经 `review_pending`」，不是每次改文件。  
+触发时机是「当前任务已经 `review_pending`」以及整单代码的最终审核；开发前的范围、方案和计划由主 Agent 检查后交人工确认。<br>
 「空上下文」靠宿主新开 Task/spawn + 禁止粘贴实现聊天，**不是**密码学隔离。  
 「材料够不够」靠主 Agent 必须交出 **sealed packet + 路径**，子 Agent 自己读需求和代码，不信主 Agent 口述。
 
@@ -33,9 +33,11 @@ Codex：CLI 用 `/agent` 切线程；IDE 看 composer 上方的 background-agent
 
 ## 2. 触发子 Agent 的时机是什么？
 
-只认这一个业务时刻，**不是**每改一个文件就审：
+开发任务审核发生在以下时刻，**不是**每改一个文件就审：
 
 > 主 Agent 已经把**当前任务**落成 `DONE` → 状态变成 `review_pending`。
+
+整单验证完成后也会派独立审核子 Agent 检查最终代码和验收证据，之后仍需人工最终批准。
 
 | 顺序 | 谁 | 做什么 |
 | --- | --- | --- |
@@ -51,6 +53,7 @@ Codex：CLI 用 `/agent` 切线程；IDE 看 composer 上方的 background-agent
 不会触发（故意不做）：
 
 - 每次 `afterFileEdit`（不能 spawn，只会吵）
+- 开发前的范围、方案、计划门禁（主 Agent 校验后交人工确认）
 - 等人打 `/reviewer`（备用，不是主路径）
 - Node 自己弹出卡片（Node 没有 Task 工具）
 

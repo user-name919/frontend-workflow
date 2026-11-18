@@ -126,7 +126,25 @@ test('decision table: ingest, reviews, implementing, terminal', () => {
   assert.equal(nextAction({ status: status('BLOCKED') }).type, 'blocked')
 })
 
-test('stale review, missing deps, empty tasks, and repeat next stay stable', () => {
+test('pre-code stages wait for human approval without dispatching reviewers', () => {
+  for (const [state, gate] of [
+    ['SCOPE_REVIEW', 'scope'],
+    ['SPEC_REVIEW', 'spec'],
+    ['PLAN_REVIEW', 'plan'],
+  ]) {
+    for (const capabilities of [
+      { freshContextDispatch: true, requestReview: true },
+      { freshContextDispatch: false, requestReview: true },
+      { freshContextDispatch: false, requestReview: false },
+    ]) {
+      const pending = nextAction({ status: status(state), delivery: delivery(), capabilities })
+      assert.equal(pending.type, 'await_human', `${gate} should not request a reviewer`)
+      assert.equal(pending.gate, gate)
+    }
+  }
+})
+
+test('stale pre-code approvals wait for human; task review and other decisions stay stable', () => {
   const staleReviewContext = {
     status: status('SPEC_REVIEW', {
       approvals: { scope: approval(), spec: null },
@@ -136,14 +154,15 @@ test('stale review, missing deps, empty tasks, and repeat next stay stable', () 
     delivery: delivery(),
     capabilities: { freshContextDispatch: true },
   }
-  assert.equal(nextAction(staleReviewContext).type, 'request_review')
+  assert.equal(nextAction(staleReviewContext).type, 'await_human')
 
   const staleApproval = nextAction({
     status: status('SPEC_REVIEW', { approvals: { scope: approval(), spec: approval() } }),
     gates: { staleApprovals: ['spec'] },
     delivery: delivery(),
   })
-  assert.equal(staleApproval.type, 'request_review')
+  assert.equal(staleApproval.type, 'await_human')
+  assert.match(staleApproval.reason, /stale/)
 
   const blockedByDep = nextAction({
     status: status('IMPLEMENTING', {

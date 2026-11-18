@@ -259,9 +259,9 @@ function nextMessage(current, events) {
   if (current.activeTaskId) return `继续处理 ${current.activeTaskId}，并按任务计划验证和登记实施结果。`
   const suggestions = {
     INGEST: '整理需求资料与项目证据，完成范围分析后提交审核。',
-    SCOPE_REVIEW: current.approvals.scope ? '范围批准已记录，可继续准备前端技术方案。' : '检查范围材料及审核记录，并处理待确认事项。',
-    SPEC_REVIEW: current.approvals.spec ? '方案批准已记录，可继续准备实施计划。' : '检查方案和验收材料，并处理审核决定。',
-    PLAN_REVIEW: current.approvals.plan ? '计划批准已记录，可按工作流进入实施。' : '检查任务拆分和验证计划，并处理审核决定。',
+    SCOPE_REVIEW: current.approvals.scope ? '范围批准已记录，可继续准备前端技术方案。' : '检查范围材料和待确认事项，交人工确认。',
+    SPEC_REVIEW: current.approvals.spec ? '方案批准已记录，可继续准备实施计划。' : '检查方案和验收材料，交人工确认。',
+    PLAN_REVIEW: current.approvals.plan ? '计划批准已记录，可按工作流进入实施。' : '检查任务拆分和验证计划，交人工确认。',
     IMPLEMENTING: '按任务依赖继续实施，任务完成后准备独立审核。',
     VERIFYING: '执行已确认的验证命令，整理最终代码改动。',
     FINAL_REVIEW: '检查最终审核材料和人工决定，完成后按工作流推进。',

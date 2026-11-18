@@ -2,7 +2,7 @@
 
 The Node scripts compute the next action and persist records. They do **not** call a model.
 
-This host Agent is the **main agent**: it writes analysis/spec/plan and it changes code. A **reviewer sub-agent** checks whether the current task or stage met the confirmed goal. See `review-authority.md` for who may release, who returns to the main agent, and who goes to a human.
+This host Agent is the **main agent**: it writes analysis/spec/plan and it changes code. It checks the pre-code materials and presents them for human approval without dispatching a reviewer. A **reviewer sub-agent** checks implementation tasks and the final code delivery. See `review-authority.md` for who may release, who returns to the main agent, and who goes to a human.
 
 ## Mode
 
@@ -13,7 +13,7 @@ This host Agent is the **main agent**: it writes analysis/spec/plan and it chang
 
 1. `workflow-control.mjs <feature> next`
 2. If the action is generate / implement / repair / collect evidence: **do it here**.
-3. If the action is `request_review` or `dispatch_reviewer`: prepare the packet, **announce** that a review sub-agent is starting, then Task/spawn `sdd-reviewer` immediately. Do not wait for the user. Node does not spawn it; a Cursor stop hook may inject one follow-up if you stop first.
+3. If the action is `dispatch_reviewer` for a task or final code delivery: prepare the packet, **announce** that a review sub-agent is starting, then Task/spawn `sdd-reviewer` immediately. Do not wait for the user. Node does not spawn it; a Cursor stop hook may inject one follow-up if you stop first.
 4. Persist. On task `pass`, the sub-agent has released that task; start the next one. Do not self-review.
 5. Stop on `await_human`, `blocked`, or `complete`.
 
@@ -26,7 +26,6 @@ For task/final verification, follow `.ai-dev/acceptance-review.md`: announce the
 | next type | Who | Persist with |
 | --- | --- | --- |
 | generate_analysis / generate_spec / generate_plan | Main agent | `workflow-control transition` |
-| request_review | Main agent runs **prepare-review**, then dispatches the reviewer | Sealed packet path |
 | dispatch_implementer / repair | Main agent + `implementer.md` + `prepare-task.mjs` | `record-task-result start` then `accept` |
 | dispatch_reviewer | Fresh sub-agent + **review-delivery** + `review-authority.md` | `record-review adapt`, then `decide`, then `accept` if the workflow report validates |
 | verify | Main agent via `run-verification.mjs` with delivery v2 scope/checkId | Current per-case records, acceptance-results.json and verification.md |
@@ -44,6 +43,7 @@ After `decide`:
 
 - `scope` and `final` always need a human `approve`.
 - `spec` and `plan` need a human `approve` unless this feature was explicitly `delegate`d.
+- The normal pre-code path does not prepare independent review packets or dispatch sub-agents, including after stale materials are refreshed. Existing delegated decisions remain supported; delegation does not automatically start a reviewer.
 - Do not forge `approvals.*.approvedBy`.
 - Do not commit, push, open a PR, merge, or deploy unless the user asks.
 

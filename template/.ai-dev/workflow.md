@@ -39,7 +39,7 @@ INGEST
   -> COMPLETE
 ```
 
-任何状态都可以转为 `BLOCKED`。只有在 `status.json` 中记录了人工批准后，才允许通过审核点。
+任何状态都可以转为 `BLOCKED`。默认各审核点需在 `status.json` 中记录人工批准后才能通过；已有或明确授权的 spec/plan 委派仍按下述协议处理。
 
 `state` 只表示当前执行阶段，`status.json.consistency` 单独记录产物修订号、过期产物和最近一次变更。修改上游产物时保持当前 state，在当前阶段同步刷新下游产物，不通过回退状态重跑流程。
 
@@ -83,7 +83,9 @@ node .ai-dev/scripts/workflow-control.mjs <feature-dir> approve --request reques
 
 ### 独立审核（协议层）
 
-默认 `policy.mode=strict`。仅当用户对本需求明确 `delegate` 后，`spec`/`plan` 可由**独立**审核 `verdict=pass` 作为放行依据（写入 `status.reviews`，不伪造 `approvals.*.approvedBy`）。`scope`/`final` 始终人工。
+开发前的 `scope`/`spec`/`plan` 由主 Agent 对照来源检查、运行门禁校验并交人工确认，常规流程不制独立审核包、不派审核子 Agent；材料变更后也由主 Agent 更新并重新交人工确认。开发任务和最终代码验收保留独立审核。
+
+默认 `policy.mode=strict`。兼容已有委派或用户明确要求单独审核的情形：仅当用户对本需求明确 `delegate` 后，`spec`/`plan` 可由**独立**审核 `verdict=pass` 作为放行依据（写入 `status.reviews`，不伪造 `approvals.*.approvedBy`）；委派本身不会自动派审核子 Agent。`scope`/`final` 始终人工。
 
 ```bash
 node .ai-dev/scripts/workflow-control.mjs <feature-dir> delegate --request delegate.json
@@ -101,7 +103,7 @@ node .ai-dev/scripts/record-task-result.mjs <feature-dir> accept --request accep
 node .ai-dev/scripts/run-verification.mjs <feature-dir> --request verify.json
 ```
 
-阶段审核包由主 Agent 用 `prepare-review` 从**已确认需求**生成并 `seal`；**审核子 Agent** 用 `review-delivery` 出报告。两者的 v1 JSON **不能**直接交给 `record-review.mjs`，必须先 `adapt`，再 `decide`。任务 `pass` 只放行该任务。`scope`/`final` 仍须人工。主 Agent 不得自审自称独立。
+开发任务和最终代码审核包由主 Agent 用 `prepare-review` 从**已确认需求**生成并 `seal`；**审核子 Agent** 用 `review-delivery` 出报告。两者的 v1 JSON **不能**直接交给 `record-review.mjs`，必须先 `adapt`，再 `decide`。任务 `pass` 只放行该任务，最终整单仍须人工批准。主 Agent 不得自审自称独立。
 
 中断恢复：先 `record-task-result inspect`，确认主 Agent 的写入已停后再 `workflow-control recover`（`confirmWorkerStopped: true`）。没有项目级写入锁。
 
@@ -227,7 +229,7 @@ node .ai-dev/scripts/record-code-changes.mjs <feature-dir> <file...>
 - `schemaVersion: 1`、`checkedBy` 为实际检查者标识。
 - `coverage` 的键覆盖所有 included FR 和全部 AC；值为 `{ "section": "评审版中真实存在的章节标题", "evidence": "两版相关段落及一致性说明" }`。编号只保存在记录中。
 - `checks` 的 `scope / behavior / contracts / boundaries / technicalDecisions / noAddedRules` 各填 `{ "result": "pass", "evidence": "实际对照位置及结论" }`。有差异先修复，不得为封存填假 pass。
-- `digests` 由脚本计算，不手填。版本一致不代表语义一致；独立审核者仍应直接对照两版和需求原文。
+- `digests` 由脚本计算，不手填。版本一致不代表语义一致；主 Agent 在前置审核点直接对照两版和需求原文，最终独立审核时审核者再核对。
 
 ```sh
 node .ai-dev/scripts/sync-review-scheme.mjs <feature-dir> seal --request comparison.json

@@ -7,6 +7,8 @@ When working from product requirements, read `.ai-dev/constitution.md` and `.ai-
 
 This session is the main agent: write artifacts and change code. When a task is `review_pending`, immediately tell the user a review sub-agent is starting and call Task `sdd-reviewer`. Do not wait for `/reviewer`. Do not self-review. Show the summary (what was reviewed, pass/fail/needs_human). On pass, run next. On needs_human, tell the user. Node cannot spawn; a stop hook may inject one follow-up. A reviewer pass on T1 releases T1 so you may implement T2. Return execution findings to yourself; send product/authority questions to the human. Humans still own `scope` / `final` (and `spec` / `plan` unless delegated). See `.agents/skills/prd-to-code/references/review-authority.md`.
 
+For the pre-code `scope`, `spec`, and `plan` gates, check the source-backed materials and run gate validation in the main agent, then present them for human approval. Do not dispatch a reviewer or prepare an independent review packet for those gates in the normal flow. Continue to dispatch reviewers for implementation tasks and final code delivery.
+
 Use `.ai-dev/features/<requirement-id>/status.json` as the state machine. Perform only the current `next` action and stop at human review gates. Never self-approve a gate. Do not treat prepare-review/review-delivery contract ok as authorization.
 
 Require source or repository evidence for material claims. Apply the workflow evidence labels and do not implement unresolved inferences, conflicts, contract gaps, unlocated requirements, backend-owned behavior, or work belonging to another repository.

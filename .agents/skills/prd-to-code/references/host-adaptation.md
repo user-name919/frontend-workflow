@@ -6,7 +6,7 @@ Node never schedules a model. The main agent writes and implements. The host onl
 
 `template/.ai-dev/host-capabilities.json` ships `freshContextDispatch=supported`.
 
-When `next` says `dispatch_reviewer` or after `request_review` has a sealed packet, call the Cursor **Task** tool with `subagent_type: sdd-reviewer` (file: `.cursor/agents/sdd-reviewer.md`). Exact prompt shape is in `dispatch-reviewer.md`. Do not paste implementer debug chat.
+When `next` says `dispatch_reviewer` for an implementation task or final code delivery, call the Cursor **Task** tool with `subagent_type: sdd-reviewer` (file: `.cursor/agents/sdd-reviewer.md`). Exact prompt shape is in `dispatch-reviewer.md`. Do not paste implementer debug chat. For `scope`/`spec`/`plan`, the main agent validates and presents materials for human approval without a review sub-agent.
 
 Do not send generate/implement work to a sub-agent unless the user asks. Do not review your own packet in this context and call it independent.
 
